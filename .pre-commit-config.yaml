@@ -1,0 +1,23 @@
+repos:
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.7
+    hooks:
+      - id: clang-format
+        types_or: [c++, c]
+        args: ['--style=file', '-i']
+
+  - repo: local
+    hooks:
+      - id: cmake-format
+        name: cmake-format
+        entry: cmake-format -i
+        language: system
+        types: [cmake]
+        files: '(CMakeLists\.txt$|\.cmake$)'
+
+      - id: clang-tidy
+        name: clang-tidy
+        entry: bash -c 'test -f build/compile_commands.json || { echo "ERROR: build/compile_commands.json not found. Run ./build.sh first."; exit 1; }; status=0; for f in "$@"; do clang-tidy --quiet -p build "$f" || status=1; done; exit $status' --
+        language: system
+        types: [c++]
+        pass_filenames: true

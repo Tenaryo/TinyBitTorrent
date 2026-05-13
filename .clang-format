@@ -1,0 +1,68 @@
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: Latest
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 80
+
+BreakBeforeBraces: Attach
+
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<.*\.h>$'
+    Priority: 1
+    SortPriority: 1
+  - Regex: '^<[^.]*>$'
+    Priority: 2
+    SortPriority: 2
+  - Regex: '^".*"$'
+    Priority: 3
+    SortPriority: 3
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: Always
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+IndentCaseLabels: false
+IndentPPDirectives: AfterHash
+NamespaceIndentation: None
+
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackParameters: false
+BinPackArguments: false
+
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+BreakBeforeBinaryOperators: All
+AlwaysBreakTemplateDeclarations: Yes
+
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 4
+
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: true
+AlignTrailingComments: true
+
+CompactNamespaces: true
+MaxEmptyLinesToKeep: 1
+
+SpaceAfterCStyleCast: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false

@@ -1,0 +1,24 @@
+name: Question / Discussion
+description: Ask a question or start a discussion
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question or want to discuss something? Go ahead!
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question / Topic
+      description: What would you like to discuss?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Any relevant context (code snippets, links, etc.).
+    validations:
+      required: false
