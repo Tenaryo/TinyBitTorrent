@@ -10,7 +10,7 @@ using json = nlohmann::json;
 namespace {
 
 auto to_json(const bencode::Value& value) -> json {
-    return std::visit([](const auto& v) -> json { return json(v); }, value);
+    return std::visit([](const auto& val) -> json { return json(val); }, value);
 }
 
 } // anonymous namespace
