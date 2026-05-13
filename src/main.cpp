@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <type_traits>
 #include <variant>
 
 #include "bencode/decoder.hpp"
@@ -10,7 +11,20 @@ using json = nlohmann::json;
 namespace {
 
 auto to_json(const bencode::Value& value) -> json {
-    return std::visit([](const auto& val) -> json { return json(val); }, value);
+    return std::visit(
+        [](const auto& val) -> json {
+            using T = std::decay_t<decltype(val)>;
+            if constexpr (std::is_same_v<T, bencode::List>) {
+                json arr = json::array();
+                for (const auto& elem : val.elements_) {
+                    arr.push_back(to_json(elem));
+                }
+                return arr;
+            } else {
+                return json(val);
+            }
+        },
+        value);
 }
 
 } // anonymous namespace

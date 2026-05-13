@@ -10,7 +10,12 @@ namespace bencode {
 
 namespace {
 
-auto decode_string(std::string_view input) -> String {
+auto decode_one(std::string_view& input) -> Value;
+auto decode_string(std::string_view& input) -> String;
+auto decode_integer(std::string_view& input) -> Integer;
+auto decode_list(std::string_view& input) -> List;
+
+auto decode_string(std::string_view& input) -> String {
     auto colon_pos = input.find(':');
     if (colon_pos == std::string_view::npos) {
         throw std::runtime_error("Invalid bencode string: missing ':'");
@@ -28,10 +33,12 @@ auto decode_string(std::string_view input) -> String {
             "Invalid bencode string: length exceeds input");
     }
 
-    return String(input.substr(colon_pos + 1, length));
+    String result(input.substr(colon_pos + 1, length));
+    input.remove_prefix(colon_pos + 1 + length);
+    return result;
 }
 
-auto decode_integer(std::string_view input) -> Integer {
+auto decode_integer(std::string_view& input) -> Integer {
     if (input.front() != 'i') {
         throw std::runtime_error("Invalid bencode integer: expected 'i'");
     }
@@ -61,12 +68,31 @@ auto decode_integer(std::string_view input) -> Integer {
         throw std::runtime_error("Invalid bencode integer: not a valid number");
     }
 
+    input.remove_prefix(end_pos + 1);
     return result;
 }
 
-} // anonymous namespace
+auto decode_list(std::string_view& input) -> List {
+    input.remove_prefix(1);
 
-auto decode(std::string_view input) -> Value {
+    List result;
+    while (!input.empty()) {
+        if (input.front() == 'e') {
+            break;
+        }
+        result.elements_.push_back(decode_one(input));
+    }
+
+    if (input.empty()) {
+        throw std::runtime_error(
+            "Invalid bencode list: missing terminator 'e'");
+    }
+
+    input.remove_prefix(1);
+    return result;
+}
+
+auto decode_one(std::string_view& input) -> Value {
     if (input.empty()) {
         throw std::runtime_error("Empty bencode input");
     }
@@ -79,8 +105,20 @@ auto decode(std::string_view input) -> Value {
     if (first == 'i') {
         return decode_integer(input);
     }
+    if (first == 'l') {
+        return decode_list(input);
+    }
 
     throw std::runtime_error("Unhandled bencoded value: " + std::string(input));
+}
+
+} // anonymous namespace
+
+auto decode(std::string_view input) -> Value {
+    if (input.empty()) {
+        throw std::runtime_error("Empty bencode input");
+    }
+    return decode_one(input);
 }
 
 } // namespace bencode
