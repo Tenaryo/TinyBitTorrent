@@ -40,8 +40,10 @@ auto format(const bencode::Value& value) -> std::string {
 }
 
 auto format(const torrent::Metainfo& info) -> std::string {
-    return std::format(
-        "Tracker URL: {}\nLength: {}\n", info.announce_, info.length_);
+    return std::format("Tracker URL: {}\nLength: {}\nInfo Hash: {}\n",
+                       info.announce_,
+                       info.length_,
+                       info.info_hash_);
 }
 
 } // namespace output

@@ -3,6 +3,9 @@
 #include <stdexcept>
 #include <utility>
 
+#include "bencode/encoder.hpp"
+#include "util/sha1.hpp"
+
 namespace torrent {
 
 auto extract(const bencode::Dict& dict) -> Metainfo {
@@ -41,7 +44,8 @@ auto extract(const bencode::Dict& dict) -> Metainfo {
         throw std::runtime_error("missing info.length in torrent file");
     }
 
-    return {std::move(announce), length};
+    auto info_hash = util::sha1_hex(bencode::encode(bencode::Value{*info}));
+    return {std::move(announce), length, info_hash};
 }
 
 } // namespace torrent

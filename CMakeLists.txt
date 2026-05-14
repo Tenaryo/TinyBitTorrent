@@ -29,8 +29,8 @@ target_compile_options(
 )
 
 add_executable(
-    bittorrent src/main.cpp src/bencode/decoder.cpp src/torrent/metainfo.cpp
-               src/output/output.cpp
+    bittorrent src/main.cpp src/bencode/decoder.cpp src/bencode/encoder.cpp
+               src/torrent/metainfo.cpp src/output/output.cpp src/util/sha1.cpp
 )
 target_link_libraries(bittorrent PRIVATE TinyBitTorrent_core)
 

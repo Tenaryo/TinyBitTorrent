@@ -33,5 +33,6 @@ TEST(EndToEnd, SampleTorrentInfo) {
     EXPECT_EQ(output,
               "Tracker URL: "
               "http://bittorrent-test-tracker.codecrafters.io/announce\n"
-              "Length: 92063\n");
+              "Length: 92063\n"
+              "Info Hash: d69f91e6b2ae4c542468d1073a71d4ea13879a7f\n");
 }
