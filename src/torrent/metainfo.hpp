@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "bencode/value.hpp"
 
@@ -9,8 +10,10 @@ namespace torrent {
 
 struct Metainfo {
     std::string announce_;
-    int64_t length_;
+    int64_t length_{};
     std::string info_hash_;
+    int64_t piece_length_{};
+    std::vector<std::string> piece_hashes_;
 };
 
 auto extract(const bencode::Dict& dict) -> Metainfo;
