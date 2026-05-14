@@ -14,6 +14,7 @@ auto decode_one(std::string_view& input) -> Value;
 auto decode_string(std::string_view& input) -> String;
 auto decode_integer(std::string_view& input) -> Integer;
 auto decode_list(std::string_view& input) -> List;
+auto decode_dict(std::string_view& input) -> Dict;
 
 auto decode_string(std::string_view& input) -> String {
     auto colon_pos = input.find(':');
@@ -92,6 +93,42 @@ auto decode_list(std::string_view& input) -> List {
     return result;
 }
 
+auto decode_dict(std::string_view& input) -> Dict {
+    input.remove_prefix(1);
+
+    Dict result;
+    std::string prev_key;
+
+    while (!input.empty()) {
+        if (input.front() == 'e') {
+            break;
+        }
+
+        auto key_val = decode_one(input);
+        auto* key_ptr = std::get_if<String>(&key_val);
+        if (key_ptr == nullptr) {
+            throw std::runtime_error(
+                "Invalid bencode dict: key must be string");
+        }
+
+        if (!prev_key.empty() && *key_ptr <= prev_key) {
+            throw std::runtime_error("Invalid bencode dict: keys not sorted");
+        }
+        prev_key = *key_ptr;
+
+        auto value = decode_one(input);
+        result.items_.emplace_back(std::move(*key_ptr), std::move(value));
+    }
+
+    if (input.empty()) {
+        throw std::runtime_error(
+            "Invalid bencode dict: missing terminator 'e'");
+    }
+
+    input.remove_prefix(1);
+    return result;
+}
+
 auto decode_one(std::string_view& input) -> Value {
     if (input.empty()) {
         throw std::runtime_error("Empty bencode input");
@@ -107,6 +144,9 @@ auto decode_one(std::string_view& input) -> Value {
     }
     if (first == 'l') {
         return decode_list(input);
+    }
+    if (first == 'd') {
+        return decode_dict(input);
     }
 
     throw std::runtime_error("Unhandled bencoded value: " + std::string(input));

@@ -20,6 +20,12 @@ auto to_json(const bencode::Value& value) -> json {
                     arr.push_back(to_json(elem));
                 }
                 return arr;
+            } else if constexpr (std::is_same_v<T, bencode::Dict>) {
+                json obj = json::object();
+                for (const auto& [key, entry] : val.items_) {
+                    obj[key] = to_json(entry);
+                }
+                return obj;
             } else {
                 return json(val);
             }
