@@ -28,7 +28,10 @@ target_compile_options(
               $<$<CONFIG:Release>:-O3>
 )
 
-add_executable(bittorrent src/main.cpp src/bencode/decoder.cpp)
+add_executable(
+    bittorrent src/main.cpp src/bencode/decoder.cpp src/torrent/metainfo.cpp
+               src/output/output.cpp
+)
 target_link_libraries(bittorrent PRIVATE TinyBitTorrent_core)
 
 option(ENABLE_SANITIZERS "Enable Address and Undefined Behavior Sanitizers" OFF)

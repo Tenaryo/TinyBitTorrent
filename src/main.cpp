@@ -1,36 +1,23 @@
+#include <fstream>
 #include <iostream>
 #include <string>
-#include <type_traits>
-#include <variant>
 
 #include "bencode/decoder.hpp"
-#include "lib/nlohmann/json.hpp"
-
-using json = nlohmann::json;
+#include "output/output.hpp"
+#include "torrent/metainfo.hpp"
 
 namespace {
 
-auto to_json(const bencode::Value& value) -> json {
-    return std::visit(
-        [](const auto& val) -> json {
-            using T = std::decay_t<decltype(val)>;
-            if constexpr (std::is_same_v<T, bencode::List>) {
-                json arr = json::array();
-                for (const auto& elem : val.elements_) {
-                    arr.push_back(to_json(elem));
-                }
-                return arr;
-            } else if constexpr (std::is_same_v<T, bencode::Dict>) {
-                json obj = json::object();
-                for (const auto& [key, entry] : val.items_) {
-                    obj[key] = to_json(entry);
-                }
-                return obj;
-            } else {
-                return json(val);
-            }
-        },
-        value);
+auto read_file(const char* path) -> std::string {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) {
+        throw std::runtime_error(std::string{"cannot open file: "} + path);
+    }
+    auto size = file.tellg();
+    file.seekg(0);
+    std::string buffer(static_cast<std::size_t>(size), '\0');
+    file.read(buffer.data(), size);
+    return buffer;
 }
 
 } // anonymous namespace
@@ -41,7 +28,7 @@ auto main(int argc, char* argv[]) -> int {
 
     try {
         if (argc < 2) {
-            std::cerr << "Usage: " << argv[0] << " decode <encoded_value>\n";
+            std::cerr << "Usage: " << argv[0] << " <command> [args]\n";
             return 1;
         }
 
@@ -53,9 +40,18 @@ auto main(int argc, char* argv[]) -> int {
                           << " decode <encoded_value>\n";
                 return 1;
             }
-
             auto decoded = bencode::decode(argv[2]);
-            std::cout << to_json(decoded).dump() << '\n';
+            std::cout << output::format(decoded) << '\n';
+        } else if (command == "info") {
+            if (argc < 3) {
+                std::cerr << "Usage: " << argv[0] << " info <torrent_file>\n";
+                return 1;
+            }
+            auto raw = read_file(argv[2]);
+            auto value = bencode::decode(raw);
+            const auto& dict = std::get<bencode::Dict>(value);
+            auto metainfo = torrent::extract(dict);
+            std::cout << output::format(metainfo);
         } else {
             std::cerr << "unknown command: " << command << '\n';
             return 1;
