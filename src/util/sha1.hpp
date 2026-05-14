@@ -23,34 +23,40 @@ class Sha1 {
     uint64_t total_len_;
 };
 
+inline auto bytes_to_hex(std::string_view bytes) -> std::string {
+    static constexpr std::array<char, 16> kHex{
+        '0',
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        'a',
+        'b',
+        'c',
+        'd',
+        'e',
+        'f',
+    };
+    std::string hex(bytes.size() * 2, '\0');
+    for (std::size_t idx = 0; idx < bytes.size(); ++idx) {
+        auto byte = static_cast<uint8_t>(bytes[idx]);
+        hex[idx * 2] = kHex[byte >> 4];
+        hex[idx * 2 + 1] = kHex[byte & 0xf];
+    }
+    return hex;
+}
+
 inline auto sha1_hex(std::string_view data) -> std::string {
     Sha1 hasher;
     hasher.update(data);
     auto digest = hasher.finalize();
-    std::string hex(40, '\0');
-    for (std::size_t idx = 0; idx < 20; ++idx) {
-        static constexpr std::array<char, 16> kHex{
-            '0',
-            '1',
-            '2',
-            '3',
-            '4',
-            '5',
-            '6',
-            '7',
-            '8',
-            '9',
-            'a',
-            'b',
-            'c',
-            'd',
-            'e',
-            'f',
-        };
-        hex[idx * 2] = kHex[digest[idx] >> 4];
-        hex[idx * 2 + 1] = kHex[digest[idx] & 0xf];
-    }
-    return hex;
+    return bytes_to_hex(std::string_view{
+        reinterpret_cast<const char*>(digest.data()), digest.size()});
 }
 
 } // namespace util

@@ -5,6 +5,7 @@
 #include "bencode/decoder.hpp"
 #include "output/output.hpp"
 #include "torrent/metainfo.hpp"
+#include "tracker/tracker.hpp"
 
 namespace {
 
@@ -52,6 +53,19 @@ auto main(int argc, char* argv[]) -> int {
             const auto& dict = std::get<bencode::Dict>(value);
             auto metainfo = torrent::extract(dict);
             std::cout << output::format(metainfo);
+        } else if (command == "peers") {
+            if (argc < 3) {
+                std::cerr << "Usage: " << argv[0] << " peers <torrent_file>\n";
+                return 1;
+            }
+            auto raw = read_file(argv[2]);
+            auto value = bencode::decode(raw);
+            const auto& dict = std::get<bencode::Dict>(value);
+            auto metainfo = torrent::extract(dict);
+            auto peers = tracker::announce(metainfo, "-TB0001-0123456789AB");
+            for (const auto& peer : peers) {
+                std::cout << std::format("{}:{}\n", peer.ip_, peer.port_);
+            }
         } else {
             std::cerr << "unknown command: " << command << '\n';
             return 1;

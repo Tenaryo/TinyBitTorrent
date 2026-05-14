@@ -74,10 +74,14 @@ auto extract(const bencode::Dict& dict) -> Metainfo {
         throw std::runtime_error("missing info.pieces in torrent file");
     }
 
-    auto info_hash = util::sha1_hex(bencode::encode(bencode::Value{*info}));
+    util::Sha1 hasher;
+    hasher.update(bencode::encode(bencode::Value{*info}));
+    auto digest = hasher.finalize();
+    std::string info_hash(reinterpret_cast<const char*>(digest.data()),
+                          digest.size());
     return {std::move(announce),
             length,
-            info_hash,
+            std::move(info_hash),
             piece_length,
             std::move(piece_hashes)};
 }

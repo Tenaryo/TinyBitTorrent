@@ -11,7 +11,7 @@ namespace torrent {
 struct Metainfo {
     std::string announce_;
     int64_t length_{};
-    std::string info_hash_;
+    std::string info_hash_; // 20-byte raw SHA1
     int64_t piece_length_{};
     std::vector<std::string> piece_hashes_;
 };

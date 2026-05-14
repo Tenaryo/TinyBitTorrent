@@ -15,7 +15,7 @@ TEST(TorrentExtract, ExtractAnnounceAndLength) {
     auto result = torrent::extract(dict);
     EXPECT_EQ(result.announce_, "http://example.com");
     EXPECT_EQ(result.length_, 12345);
-    EXPECT_EQ(result.info_hash_.size(), 40);
+    EXPECT_EQ(result.info_hash_.size(), 20);
     EXPECT_FALSE(result.info_hash_.empty());
     EXPECT_EQ(result.piece_length_, 32768);
     ASSERT_EQ(result.piece_hashes_.size(), 1);

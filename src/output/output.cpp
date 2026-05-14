@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "lib/nlohmann/json.hpp"
+#include "util/sha1.hpp"
 
 namespace output {
 
@@ -45,7 +46,7 @@ auto format(const torrent::Metainfo& info) -> std::string {
         "Hashes:\n",
         info.announce_,
         info.length_,
-        info.info_hash_,
+        util::bytes_to_hex(info.info_hash_),
         info.piece_length_);
     for (const auto& hash : info.piece_hashes_) {
         result += hash;
