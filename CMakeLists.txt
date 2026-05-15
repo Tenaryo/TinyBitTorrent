@@ -36,9 +36,11 @@ add_executable(
     src/torrent/metainfo.cpp
     src/output/output.cpp
     src/util/sha1.cpp
+    src/util/socket.cpp
     src/util/url_encode.cpp
     src/http/http_client.cpp
     src/tracker/tracker.cpp
+    src/peer/peer.cpp
 )
 target_link_libraries(bittorrent PRIVATE TinyBitTorrent_core)
 

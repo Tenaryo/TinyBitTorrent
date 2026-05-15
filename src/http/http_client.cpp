@@ -1,14 +1,16 @@
 #include "http/http_client.hpp"
 
-#include <netdb.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <format>
 #include <stdexcept>
 #include <string_view>
+
+#include "util/socket.hpp"
 
 namespace http {
 
@@ -57,84 +59,19 @@ auto parse_url(std::string_view url) -> UrlParts {
     return {host, path, port};
 }
 
-class Socket {
-  public:
-    Socket(std::string_view host, uint16_t port) {
-        addrinfo hints{};
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_STREAM;
-        addrinfo* result = nullptr;
-        auto port_str = std::to_string(port);
-
-        int ret = getaddrinfo(
-            std::string{host}.c_str(), port_str.c_str(), &hints, &result);
-        if (ret != 0) {
-            throw std::runtime_error(
-                std::format("getaddrinfo failed: {}", gai_strerror(ret)));
-        }
-
-        for (auto* rp = result; rp != nullptr; rp = rp->ai_next) {
-            fd_ = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-            if (fd_ < 0) {
-                continue;
-            }
-            if (connect(fd_, rp->ai_addr, rp->ai_addrlen) == 0) {
-                break;
-            }
-            close();
-        }
-        freeaddrinfo(result);
-
-        if (fd_ < 0) {
-            throw std::runtime_error(
-                std::format("cannot connect to {}:{}", host, port));
-        }
-    }
-
-    ~Socket() {
-        close();
-    }
-
-    Socket(const Socket&) = delete;
-    auto operator=(const Socket&) -> Socket& = delete;
-
-    [[nodiscard]] auto fd() const -> int {
-        return fd_;
-    }
-
-  private:
-    void close() {
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = -1;
-        }
-    }
-    int fd_{-1};
-};
-
-auto send_all(int sock_fd, std::string_view data) -> void {
-    while (!data.empty()) {
-        ssize_t sent = ::send(sock_fd, data.data(), data.size(), 0);
-        if (sent < 0) {
-            throw std::runtime_error("send failed");
-        }
-        data.remove_prefix(static_cast<std::size_t>(sent));
-    }
-}
-
 } // anonymous namespace
 
 auto get(std::string_view url) -> std::string {
     auto [host, path, port] = parse_url(url);
 
-    Socket sock(host, port);
+    util::Socket sock(host, port);
 
     auto request = std::format(
         "GET {} HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\n\r\n",
         path,
         host,
         port);
-    send_all(sock.fd(), request);
+    util::send_all(sock.fd(), request);
 
     std::array<char, 4096> buf{};
     std::string response;

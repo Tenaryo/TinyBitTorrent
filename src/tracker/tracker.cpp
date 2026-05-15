@@ -16,7 +16,7 @@ auto announce(const torrent::Metainfo& info, std::string_view peer_id)
         "&compact=1",
         info.announce_,
         util::url_encode(info.info_hash_),
-        peer_id,
+        util::url_encode(peer_id),
         info.length_);
 
     auto response = http::get(url);

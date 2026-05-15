@@ -10,9 +10,11 @@ foreach (TEST_FILE ${TEST_SOURCES})
         ${CMAKE_SOURCE_DIR}/src/torrent/metainfo.cpp
         ${CMAKE_SOURCE_DIR}/src/output/output.cpp
         ${CMAKE_SOURCE_DIR}/src/util/sha1.cpp
+        ${CMAKE_SOURCE_DIR}/src/util/socket.cpp
         ${CMAKE_SOURCE_DIR}/src/util/url_encode.cpp
         ${CMAKE_SOURCE_DIR}/src/http/http_client.cpp
         ${CMAKE_SOURCE_DIR}/src/tracker/tracker.cpp
+        ${CMAKE_SOURCE_DIR}/src/peer/peer.cpp
     )
     target_link_libraries(
         ${TEST_NAME} PRIVATE TinyBitTorrent_core GTest::gtest_main

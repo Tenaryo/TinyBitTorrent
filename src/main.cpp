@@ -4,8 +4,12 @@
 
 #include "bencode/decoder.hpp"
 #include "output/output.hpp"
+#include "peer/peer.hpp"
 #include "torrent/metainfo.hpp"
 #include "tracker/tracker.hpp"
+#include "util/net_util.hpp"
+#include "util/random.hpp"
+#include "util/sha1.hpp"
 
 namespace {
 
@@ -62,10 +66,25 @@ auto main(int argc, char* argv[]) -> int {
             auto value = bencode::decode(raw);
             const auto& dict = std::get<bencode::Dict>(value);
             auto metainfo = torrent::extract(dict);
-            auto peers = tracker::announce(metainfo, "-TB0001-0123456789AB");
+            auto peers = tracker::announce(metainfo, util::random_bytes(20));
             for (const auto& peer : peers) {
                 std::cout << std::format("{}:{}\n", peer.ip_, peer.port_);
             }
+        } else if (command == "handshake") {
+            if (argc < 4) {
+                std::cerr << "Usage: " << argv[0]
+                          << " handshake <torrent_file> <peer_ip:peer_port>\n";
+                return 1;
+            }
+            auto raw = read_file(argv[2]);
+            auto value = bencode::decode(raw);
+            const auto& dict = std::get<bencode::Dict>(value);
+            auto metainfo = torrent::extract(dict);
+            auto [host, port] = util::parse_host_port(argv[3]);
+            auto peer_id = util::random_bytes(20);
+            auto result
+                = peer::handshake(host, port, metainfo.info_hash_, peer_id);
+            std::cout << "Peer ID: " << util::bytes_to_hex(result) << '\n';
         } else {
             std::cerr << "unknown command: " << command << '\n';
             return 1;
