@@ -41,6 +41,7 @@ add_executable(
     src/http/http_client.cpp
     src/tracker/tracker.cpp
     src/peer/peer.cpp
+    src/peer/message.cpp
 )
 target_link_libraries(bittorrent PRIVATE TinyBitTorrent_core)
 

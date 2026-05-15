@@ -1,7 +1,0 @@
-line_width: 80
-tab_size: 4
-dangle_parens: true
-keyword_case: upper
-separate_fn_name_with_space: false
-separate_ctrl_name_with_space: true
-enable_markup: false

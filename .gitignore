@@ -1,11 +1,11 @@
-# Build
+#Build
 build*/
 compile_commands.json
 
 .clangd/
 .cache/
 
-# CMake
+#CMake
 CMakeCache.txt
 CMakeFiles/
 CMakeScripts/
@@ -14,22 +14,23 @@ cmake_install.cmake
 CTestTestfile.cmake
 _deps
 
-# IDE
+#IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# Compiled
+#Compiled
 *.o
 *.a
 *.so
 *.d
 
-# OS
+#OS
 .DS_Store
 Thumbs.db
 
-# Project
+#Project
 *.log
+.worktree/

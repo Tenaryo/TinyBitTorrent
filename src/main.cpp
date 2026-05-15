@@ -70,6 +70,35 @@ auto main(int argc, char* argv[]) -> int {
             for (const auto& peer : peers) {
                 std::cout << std::format("{}:{}\n", peer.ip_, peer.port_);
             }
+        } else if (command == "download_piece") {
+            if (argc < 6) {
+                std::cerr << "Usage: " << argv[0]
+                          << " download_piece -o <output> <torrent_file> "
+                             "<piece_index>\n";
+                return 1;
+            }
+            auto* output_path = argv[3];
+            auto raw = read_file(argv[4]);
+            auto piece_index = std::stoi(argv[5]);
+            auto value = bencode::decode(raw);
+            const auto& dict = std::get<bencode::Dict>(value);
+            auto metainfo = torrent::extract(dict);
+            auto peer_id = util::random_bytes(20);
+            auto peers = tracker::announce(metainfo, peer_id);
+            if (peers.empty()) {
+                throw std::runtime_error("no peers available");
+            }
+            auto data = peer::download_piece(
+                metainfo, peers[0].ip_, peers[0].port_, peer_id, piece_index);
+            {
+                std::ofstream out(output_path, std::ios::binary);
+                if (!out) {
+                    throw std::runtime_error(std::string{"cannot write to "}
+                                             + output_path);
+                }
+                out.write(data.data(),
+                          static_cast<std::streamsize>(data.size()));
+            }
         } else if (command == "handshake") {
             if (argc < 4) {
                 std::cerr << "Usage: " << argv[0]

@@ -15,6 +15,7 @@ foreach (TEST_FILE ${TEST_SOURCES})
         ${CMAKE_SOURCE_DIR}/src/http/http_client.cpp
         ${CMAKE_SOURCE_DIR}/src/tracker/tracker.cpp
         ${CMAKE_SOURCE_DIR}/src/peer/peer.cpp
+        ${CMAKE_SOURCE_DIR}/src/peer/message.cpp
     )
     target_link_libraries(
         ${TEST_NAME} PRIVATE TinyBitTorrent_core GTest::gtest_main
