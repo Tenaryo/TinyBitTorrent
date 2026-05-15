@@ -97,7 +97,6 @@ auto decode_dict(std::string_view& input) -> Dict {
     input.remove_prefix(1);
 
     Dict result;
-    std::string prev_key;
 
     while (!input.empty()) {
         if (input.front() == 'e') {
@@ -110,11 +109,6 @@ auto decode_dict(std::string_view& input) -> Dict {
             throw std::runtime_error(
                 "Invalid bencode dict: key must be string");
         }
-
-        if (!prev_key.empty() && *key_ptr <= prev_key) {
-            throw std::runtime_error("Invalid bencode dict: keys not sorted");
-        }
-        prev_key = *key_ptr;
 
         auto value = decode_one(input);
         result.items_.emplace_back(std::move(*key_ptr), std::move(value));
