@@ -22,6 +22,7 @@ auto make_handshake(std::string_view info_hash, std::string_view our_peer_id)
     msg[0] = 19;
     constexpr std::string_view kProtocol = "BitTorrent protocol";
     std::ranges::copy(kProtocol, msg.begin() + 1);
+    msg[25] = '\x10';
     std::ranges::copy(info_hash, msg.begin() + 28);
     std::ranges::copy(our_peer_id, msg.begin() + 48);
     return msg;

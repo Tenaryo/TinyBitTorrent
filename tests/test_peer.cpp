@@ -15,7 +15,11 @@ TEST(PeerTest, MakeHandshake) {
     ASSERT_EQ(msg.size(), 68);
     EXPECT_EQ(msg[0], 19);
     EXPECT_EQ(msg.substr(1, 19), "BitTorrent protocol");
+    EXPECT_EQ(msg[25], '\x10');
     for (int i = 20; i < 28; ++i) {
+        if (i == 25) {
+            continue;
+        }
         EXPECT_EQ(msg[i], '\0');
     }
     EXPECT_EQ(msg.substr(28, 20), info_hash);
@@ -27,6 +31,19 @@ TEST(PeerTest, ParseHandshakePeerId) {
     response[0] = 19;
     std::string protocol = "BitTorrent protocol";
     std::ranges::copy(protocol, response.begin() + 1);
+    std::string expected_peer_id(20, '\x03');
+    std::ranges::copy(expected_peer_id, response.begin() + 48);
+
+    auto peer_id = peer::parse_handshake_peer_id(response);
+    EXPECT_EQ(peer_id, expected_peer_id);
+}
+
+TEST(PeerTest, ParseHandshakePeerIdWithExtensionBits) {
+    std::string response(68, '\0');
+    response[0] = 19;
+    std::string protocol = "BitTorrent protocol";
+    std::ranges::copy(protocol, response.begin() + 1);
+    response[25] = '\x10';
     std::string expected_peer_id(20, '\x03');
     std::ranges::copy(expected_peer_id, response.begin() + 48);
 

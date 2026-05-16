@@ -18,6 +18,7 @@ foreach (TEST_FILE ${TEST_SOURCES})
         ${CMAKE_SOURCE_DIR}/src/peer/message.cpp
         ${CMAKE_SOURCE_DIR}/src/download/download.cpp
         ${CMAKE_SOURCE_DIR}/src/magnet/magnet.cpp
+        ${CMAKE_SOURCE_DIR}/src/cmd/cmd.cpp
     )
     target_link_libraries(
         ${TEST_NAME} PRIVATE TinyBitTorrent_core GTest::gtest_main

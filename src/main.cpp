@@ -1,8 +1,10 @@
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <string>
 
 #include "bencode/decoder.hpp"
+#include "cmd/cmd.hpp"
 #include "download/download.hpp"
 #include "magnet/magnet.hpp"
 #include "output/output.hpp"
@@ -97,6 +99,77 @@ auto handle_magnet_parse(const char* magnet_link) -> int {
     return 0;
 }
 
+auto handle_magnet_handshake(const char* magnet_link) -> int {
+    auto info = magnet::parse(magnet_link);
+    auto peer_id = util::random_bytes(20);
+    auto peers = tracker::announce(info.info_hash_, info.tracker_url_, peer_id);
+    if (peers.empty()) {
+        throw std::runtime_error("no peers available");
+    }
+    auto result = peer::handshake(
+        peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
+    std::cout << "Peer ID: " << util::bytes_to_hex(result) << '\n';
+    return 0;
+}
+
+auto cmd_decode(int /*argc*/, char** argv) -> int {
+    return handle_decode(argv[2]);
+}
+
+auto cmd_info(int /*argc*/, char** argv) -> int {
+    return handle_info(argv[2]);
+}
+
+auto cmd_peers(int /*argc*/, char** argv) -> int {
+    return handle_peers(argv[2]);
+}
+
+auto cmd_download_piece(int /*argc*/, char** argv) -> int {
+    return handle_download_piece(argv[3], argv[4], argv[5]);
+}
+
+auto cmd_download(int /*argc*/, char** argv) -> int {
+    return handle_download(argv[3], argv[4]);
+}
+
+auto cmd_handshake(int /*argc*/, char** argv) -> int {
+    return handle_handshake(argv[2], argv[3]);
+}
+
+auto cmd_magnet_parse(int /*argc*/, char** argv) -> int {
+    return handle_magnet_parse(argv[2]);
+}
+
+auto cmd_magnet_handshake(int /*argc*/, char** argv) -> int {
+    return handle_magnet_handshake(argv[2]);
+}
+
+constexpr std::array kCommands = {
+    cmd::Command{"decode", "decode <encoded_value>", 3, cmd_decode},
+    cmd::Command{"info", "info <torrent_file>", 3, cmd_info},
+    cmd::Command{"peers", "peers <torrent_file>", 3, cmd_peers},
+    cmd::Command{"download_piece",
+                 "download_piece -o <output> <torrent_file> <piece_index>",
+                 6,
+                 cmd_download_piece},
+    cmd::Command{"download",
+                 "download -o <output> <torrent_file>",
+                 5,
+                 cmd_download},
+    cmd::Command{"handshake",
+                 "handshake <torrent_file> <peer_ip:peer_port>",
+                 4,
+                 cmd_handshake},
+    cmd::Command{"magnet_parse",
+                 "magnet_parse <magnet_link>",
+                 3,
+                 cmd_magnet_parse},
+    cmd::Command{"magnet_handshake",
+                 "magnet_handshake <magnet_link>",
+                 3,
+                 cmd_magnet_handshake},
+};
+
 } // anonymous namespace
 
 auto main(int argc, char* argv[]) -> int {
@@ -108,68 +181,7 @@ auto main(int argc, char* argv[]) -> int {
             std::cerr << "Usage: " << argv[0] << " <command> [args]\n";
             return 1;
         }
-
-        std::string command = argv[1];
-
-        if (command == "decode") {
-            if (argc < 3) {
-                std::cerr << "Usage: " << argv[0]
-                          << " decode <encoded_value>\n";
-                return 1;
-            }
-            return handle_decode(argv[2]);
-        }
-        if (command == "info") {
-            if (argc < 3) {
-                std::cerr << "Usage: " << argv[0] << " info <torrent_file>\n";
-                return 1;
-            }
-            return handle_info(argv[2]);
-        }
-        if (command == "peers") {
-            if (argc < 3) {
-                std::cerr << "Usage: " << argv[0] << " peers <torrent_file>\n";
-                return 1;
-            }
-            return handle_peers(argv[2]);
-        }
-        if (command == "download_piece") {
-            if (argc < 6) {
-                std::cerr << "Usage: " << argv[0]
-                          << " download_piece -o <output> <torrent_file> "
-                             "<piece_index>\n";
-                return 1;
-            }
-            return handle_download_piece(argv[3], argv[4], argv[5]);
-        }
-        if (command == "download") {
-            if (argc < 5) {
-                std::cerr << "Usage: " << argv[0]
-                          << " download -o <output> <torrent_file>\n";
-                return 1;
-            }
-            return handle_download(argv[3], argv[4]);
-        }
-        if (command == "handshake") {
-            if (argc < 4) {
-                std::cerr << "Usage: " << argv[0]
-                          << " handshake <torrent_file> "
-                             "<peer_ip:peer_port>\n";
-                return 1;
-            }
-            return handle_handshake(argv[2], argv[3]);
-        }
-        if (command == "magnet_parse") {
-            if (argc < 3) {
-                std::cerr << "Usage: " << argv[0]
-                          << " magnet_parse <magnet_link>\n";
-                return 1;
-            }
-            return handle_magnet_parse(argv[2]);
-        }
-
-        std::cerr << "unknown command: " << command << '\n';
-        return 1;
+        return cmd::dispatch(argv[1], kCommands, argc, argv);
     } catch (const std::exception& e) {
         std::cerr << "error: " << e.what() << '\n';
         return 1;
