@@ -51,4 +51,27 @@ TEST(PeerTest, ParseHandshakePeerIdWithExtensionBits) {
     EXPECT_EQ(peer_id, expected_peer_id);
 }
 
+TEST(PeerTest, HandshakeHasExtensionsWhenBitSet) {
+    std::string response(68, '\0');
+    response[0] = 19;
+    std::string protocol = "BitTorrent protocol";
+    std::ranges::copy(protocol, response.begin() + 1);
+    response[25] = '\x10';
+    EXPECT_TRUE(peer::handshake_has_extensions(response));
+}
+
+TEST(PeerTest, HandshakeHasExtensionsWhenBitNotSet) {
+    std::string response(68, '\0');
+    response[0] = 19;
+    std::string protocol = "BitTorrent protocol";
+    std::ranges::copy(protocol, response.begin() + 1);
+    response[25] = '\x00';
+    EXPECT_FALSE(peer::handshake_has_extensions(response));
+}
+
+TEST(PeerTest, HandshakeHasExtensionsTooShort) {
+    std::string response(30, '\0');
+    EXPECT_THROW(peer::handshake_has_extensions(response), std::runtime_error);
+}
+
 } // namespace

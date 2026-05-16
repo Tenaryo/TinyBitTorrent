@@ -39,6 +39,16 @@ auto encode(const Message& msg) -> std::string {
                 buf.append(pce.block_);
                 return buf;
             },
+            [](const Extended& ext) -> std::string {
+                std::string buf;
+                auto payload_len
+                    = 1 + 1 + static_cast<int32_t>(ext.payload_.size());
+                util::write_int32_be(buf, payload_len);
+                buf.push_back(20);
+                buf.push_back(static_cast<char>(ext.ext_msg_id_));
+                buf.append(ext.payload_);
+                return buf;
+            },
         },
         msg);
 }
@@ -75,6 +85,15 @@ auto decode(std::string_view data) -> Message {
         pce.begin_ = util::read_int32_be(ptr);
         pce.block_ = std::string(payload.substr(8));
         return pce;
+    }
+    case 20: {
+        if (payload.empty()) {
+            throw std::runtime_error("extended message too short");
+        }
+        Extended ext{};
+        ext.ext_msg_id_ = static_cast<uint8_t>(payload[0]);
+        ext.payload_ = std::string(payload.substr(1));
+        return ext;
     }
     default:
         throw std::runtime_error("unknown message id: "

@@ -106,7 +106,7 @@ auto handle_magnet_handshake(const char* magnet_link) -> int {
     if (peers.empty()) {
         throw std::runtime_error("no peers available");
     }
-    auto result = peer::handshake(
+    auto result = peer::magnet_handshake(
         peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
     std::cout << "Peer ID: " << util::bytes_to_hex(result) << '\n';
     return 0;

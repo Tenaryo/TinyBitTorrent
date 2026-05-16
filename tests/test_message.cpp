@@ -230,4 +230,47 @@ TEST(Bitfield, EmptyBitfieldReturnsFalse) {
     EXPECT_FALSE(has_piece(bf, 0));
 }
 
+TEST(Message, EncodeDecodeExtendedHandshake) {
+    using namespace peer::message;
+    Extended ext{0, "d1:md11:ut_metadatai1ee"};
+    auto encoded = encode(ext);
+    ASSERT_GE(encoded.size(), 6);
+    ASSERT_EQ(static_cast<uint8_t>(encoded[4]), 20);
+    ASSERT_EQ(static_cast<uint8_t>(encoded[5]), 0);
+    EXPECT_EQ(encoded.substr(6), "d1:md11:ut_metadatai1ee");
+
+    auto decoded = decode(std::string_view{encoded}.substr(4));
+    ASSERT_TRUE(std::holds_alternative<Extended>(decoded));
+    auto& dec_ext = std::get<Extended>(decoded);
+    EXPECT_EQ(dec_ext.ext_msg_id_, 0);
+    EXPECT_EQ(dec_ext.payload_, "d1:md11:ut_metadatai1ee");
+}
+
+TEST(Message, EncodeDecodeExtendedMaxId) {
+    using namespace peer::message;
+    Extended ext{255, "d4:testi42ee"};
+    auto encoded = encode(ext);
+    ASSERT_EQ(static_cast<uint8_t>(encoded[4]), 20);
+    ASSERT_EQ(static_cast<uint8_t>(encoded[5]), 255);
+
+    auto decoded = decode(std::string_view{encoded}.substr(4));
+    auto& dec_ext = std::get<Extended>(decoded);
+    EXPECT_EQ(dec_ext.ext_msg_id_, 255);
+    EXPECT_EQ(dec_ext.payload_, "d4:testi42ee");
+}
+
+TEST(Message, EncodeDecodeExtendedEmptyPayload) {
+    using namespace peer::message;
+    Extended ext{7, ""};
+    auto encoded = encode(ext);
+    ASSERT_EQ(static_cast<uint8_t>(encoded[4]), 20);
+    ASSERT_EQ(static_cast<uint8_t>(encoded[5]), 7);
+    ASSERT_EQ(encoded.size(), 6);
+
+    auto decoded = decode(std::string_view{encoded}.substr(4));
+    auto& dec_ext = std::get<Extended>(decoded);
+    EXPECT_EQ(dec_ext.ext_msg_id_, 7);
+    EXPECT_TRUE(dec_ext.payload_.empty());
+}
+
 } // anonymous namespace

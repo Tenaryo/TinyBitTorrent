@@ -21,8 +21,13 @@ struct Piece {
     int32_t begin_;
     std::string block_;
 };
+struct Extended {
+    uint8_t ext_msg_id_;
+    std::string payload_;
+};
 
-using Message = std::variant<Interested, Unchoke, Bitfield, Request, Piece>;
+using Message
+    = std::variant<Interested, Unchoke, Bitfield, Request, Piece, Extended>;
 
 template <class... Ts>
 struct Overloaded : Ts... {

@@ -9,6 +9,8 @@
 #include <string_view>
 #include <vector>
 
+#include "bencode/encoder.hpp"
+#include "bencode/value.hpp"
 #include "peer/message.hpp"
 #include "util/bytes.hpp"
 #include "util/sha1.hpp"
@@ -74,6 +76,54 @@ auto recv_message(int sock_fd) -> message::Message {
 }
 
 } // anonymous namespace
+
+auto magnet_handshake(std::string_view host,
+                      uint16_t port,
+                      std::string_view info_hash,
+                      std::string_view our_peer_id,
+                      uint8_t ext_id) -> std::string {
+    util::Socket sock(host, port);
+
+    auto hs_msg = make_handshake(info_hash, our_peer_id);
+    util::send_all(sock.fd(), hs_msg);
+
+    std::array<char, 68> hs_buf{};
+    util::recv_all(sock.fd(), hs_buf);
+    auto peer_id = parse_handshake_peer_id(
+        std::string_view{hs_buf.data(), hs_buf.size()});
+
+    bool has_ext = (static_cast<uint8_t>(hs_buf[25]) & 0x10) != 0;
+
+    {
+        auto bfld = message::encode(message::Bitfield{});
+        util::send_all(sock.fd(), bfld);
+    }
+
+    recv_message(sock.fd());
+
+    if (has_ext) {
+        bencode::Dict ext_dict;
+        bencode::Dict inner_dict;
+        inner_dict.items_.emplace_back("ut_metadata", bencode::Integer{ext_id});
+        ext_dict.items_.emplace_back("m", std::move(inner_dict));
+
+        auto ext_payload = bencode::encode(bencode::Value{ext_dict});
+        auto ext_msg
+            = message::encode(message::Extended{0, std::move(ext_payload)});
+        util::send_all(sock.fd(), ext_msg);
+
+        recv_message(sock.fd());
+    }
+
+    return peer_id;
+}
+
+auto handshake_has_extensions(std::string_view response) -> bool {
+    if (response.size() < 68) {
+        throw std::runtime_error("handshake response too short");
+    }
+    return (static_cast<uint8_t>(response[25]) & 0x10) != 0;
+}
 
 auto download_piece(const torrent::Metainfo& info,
                     std::string_view peer_ip,
