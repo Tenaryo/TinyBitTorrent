@@ -184,4 +184,50 @@ TEST(BytesUtil, WriteReadNegativeInt32) {
     EXPECT_EQ(util::read_int32_be(ptr), -1);
 }
 
+TEST(Bitfield, HasPieceZero) {
+    using namespace peer::message;
+    Bitfield bf;
+    bf.data_ = std::string{'\x80'};
+    EXPECT_TRUE(has_piece(bf, 0));
+}
+
+TEST(Bitfield, HasPieceOne) {
+    using namespace peer::message;
+    Bitfield bf;
+    bf.data_ = std::string{'\x40'};
+    EXPECT_TRUE(has_piece(bf, 1));
+}
+
+TEST(Bitfield, MissingPieceZero) {
+    using namespace peer::message;
+    Bitfield bf;
+    bf.data_ = std::string{'\x7F'};
+    EXPECT_FALSE(has_piece(bf, 0));
+}
+
+TEST(Bitfield, HasAllThreePieces) {
+    using namespace peer::message;
+    Bitfield bf;
+    bf.data_ = std::string{'\xE0'};
+    EXPECT_TRUE(has_piece(bf, 0));
+    EXPECT_TRUE(has_piece(bf, 1));
+    EXPECT_TRUE(has_piece(bf, 2));
+}
+
+TEST(Bitfield, MultiByteHasPieceFifteen) {
+    using namespace peer::message;
+    Bitfield bf;
+    bf.data_ = std::string{'\x00', '\x00', '\x01'};
+    EXPECT_FALSE(has_piece(bf, 0));
+    EXPECT_FALSE(has_piece(bf, 7));
+    EXPECT_TRUE(has_piece(bf, 23));
+}
+
+TEST(Bitfield, EmptyBitfieldReturnsFalse) {
+    using namespace peer::message;
+    Bitfield bf;
+    bf.data_ = "";
+    EXPECT_FALSE(has_piece(bf, 0));
+}
+
 } // anonymous namespace

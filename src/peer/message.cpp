@@ -82,4 +82,15 @@ auto decode(std::string_view data) -> Message {
     }
 }
 
+auto has_piece(const Bitfield& bfld, int piece_index) -> bool {
+    auto byte_idx = piece_index / 8;
+    if (byte_idx >= static_cast<int>(bfld.data_.size())) {
+        return false;
+    }
+    auto bit_idx = 7 - (piece_index % 8);
+    return (static_cast<uint8_t>(bfld.data_[static_cast<size_t>(byte_idx)])
+            & (1 << bit_idx))
+           != 0;
+}
+
 } // namespace peer::message

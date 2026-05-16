@@ -4,6 +4,7 @@
 #include <string>
 
 #include "bencode/decoder.hpp"
+#include "download/download.hpp"
 #include "output/output.hpp"
 #include "torrent/metainfo.hpp"
 
@@ -40,4 +41,13 @@ TEST(EndToEnd, SampleTorrentInfo) {
               "e876f67a2a8886e8f36b136726c30fa29703022d\n"
               "6e2275e604a0766656736e81ff10b55204ad8d35\n"
               "f00d937a0213df1982bc8d097227ad9e909acc17\n");
+}
+
+TEST(Download, EmptyPeerListThrows) {
+    auto raw = read_file(SAMPLE_TORRENT);
+    auto value = bencode::decode(raw);
+    const auto& dict = std::get<bencode::Dict>(value);
+    auto info = torrent::extract(dict);
+    EXPECT_THROW(download::download_file(info, {}, "/tmp/test.txt"),
+                 std::runtime_error);
 }

@@ -93,6 +93,11 @@ auto download_piece(const torrent::Metainfo& info,
         if (!std::holds_alternative<message::Bitfield>(msg)) {
             throw std::runtime_error("expected bitfield, got other message");
         }
+        if (!message::has_piece(std::get<message::Bitfield>(msg),
+                                piece_index)) {
+            throw std::runtime_error("peer does not have piece "
+                                     + std::to_string(piece_index));
+        }
     }
 
     {
