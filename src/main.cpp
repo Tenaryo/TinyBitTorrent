@@ -4,6 +4,7 @@
 
 #include "bencode/decoder.hpp"
 #include "download/download.hpp"
+#include "magnet/magnet.hpp"
 #include "output/output.hpp"
 #include "peer/peer.hpp"
 #include "torrent/metainfo.hpp"
@@ -90,6 +91,12 @@ auto handle_handshake(const char* torrent_path, const char* host_port) -> int {
     return 0;
 }
 
+auto handle_magnet_parse(const char* magnet_link) -> int {
+    auto info = magnet::parse(magnet_link);
+    std::cout << output::format(info);
+    return 0;
+}
+
 } // anonymous namespace
 
 auto main(int argc, char* argv[]) -> int {
@@ -151,6 +158,14 @@ auto main(int argc, char* argv[]) -> int {
                 return 1;
             }
             return handle_handshake(argv[2], argv[3]);
+        }
+        if (command == "magnet_parse") {
+            if (argc < 3) {
+                std::cerr << "Usage: " << argv[0]
+                          << " magnet_parse <magnet_link>\n";
+                return 1;
+            }
+            return handle_magnet_parse(argv[2]);
         }
 
         std::cerr << "unknown command: " << command << '\n';

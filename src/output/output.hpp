@@ -3,6 +3,7 @@
 #include <string>
 
 #include "bencode/value.hpp"
+#include "magnet/magnet.hpp"
 #include "torrent/metainfo.hpp"
 
 namespace output {
@@ -10,5 +11,7 @@ namespace output {
 auto format(const bencode::Value& value) -> std::string;
 
 auto format(const torrent::Metainfo& info) -> std::string;
+
+auto format(const magnet::MagnetInfo& info) -> std::string;
 
 } // namespace output

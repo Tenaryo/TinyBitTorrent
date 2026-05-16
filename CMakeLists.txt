@@ -43,6 +43,7 @@ add_executable(
     src/peer/peer.cpp
     src/peer/message.cpp
     src/download/download.cpp
+    src/magnet/magnet.cpp
 )
 target_link_libraries(bittorrent PRIVATE TinyBitTorrent_core)
 

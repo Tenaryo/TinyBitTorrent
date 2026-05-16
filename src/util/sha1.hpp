@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -49,6 +50,37 @@ inline auto bytes_to_hex(std::string_view bytes) -> std::string {
         hex[idx * 2 + 1] = kHex[byte & 0xf];
     }
     return hex;
+}
+
+inline auto hex_to_bytes(std::string_view hex) -> std::string {
+    if (hex.size() != 40) {
+        throw std::runtime_error("info hash must be 40 hex characters");
+    }
+    static constexpr auto kHexValue = []() {
+        std::array<int, 256> table{};
+        table.fill(-1);
+        for (int i = 0; i < 10; ++i) {
+            table[static_cast<std::size_t>('0') + static_cast<std::size_t>(i)]
+                = i;
+        }
+        for (int i = 0; i < 6; ++i) {
+            table[static_cast<std::size_t>('a') + static_cast<std::size_t>(i)]
+                = 10 + i;
+            table[static_cast<std::size_t>('A') + static_cast<std::size_t>(i)]
+                = 10 + i;
+        }
+        return table;
+    }();
+    std::string bytes(20, '\0');
+    for (std::size_t i = 0; i < 20; ++i) {
+        int high = kHexValue[static_cast<uint8_t>(hex[i * 2])];
+        int low = kHexValue[static_cast<uint8_t>(hex[i * 2 + 1])];
+        if (high < 0 || low < 0) {
+            throw std::runtime_error("invalid hex character in info hash");
+        }
+        bytes[i] = static_cast<char>((high << 4) | low);
+    }
+    return bytes;
 }
 
 inline auto sha1_hex(std::string_view data) -> std::string {

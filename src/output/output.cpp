@@ -55,4 +55,10 @@ auto format(const torrent::Metainfo& info) -> std::string {
     return result;
 }
 
+auto format(const magnet::MagnetInfo& info) -> std::string {
+    return std::format("Tracker URL: {}\nInfo Hash: {}\n",
+                       info.tracker_url_,
+                       util::bytes_to_hex(info.info_hash_));
+}
+
 } // namespace output
