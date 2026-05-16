@@ -78,7 +78,7 @@ auto announce(const torrent::Metainfo& info, std::string_view peer_id)
 auto announce(std::string_view info_hash,
               std::string_view tracker_url,
               std::string_view peer_id) -> std::vector<Peer> {
-    auto url = build_announce_url(tracker_url, info_hash, peer_id, 999999999);
+    auto url = build_announce_url(tracker_url, info_hash, peer_id, 65536);
 
     auto response = http::get(url);
     auto parsed = bencode::decode(response);
