@@ -94,13 +94,6 @@ auto magnet_handshake(std::string_view host,
 
     bool has_ext = (static_cast<uint8_t>(hs_buf[25]) & 0x10) != 0;
 
-    {
-        auto bfld = message::encode(message::Bitfield{});
-        util::send_all(sock.fd(), bfld);
-    }
-
-    recv_message(sock.fd());
-
     if (has_ext) {
         bencode::Dict ext_dict;
         bencode::Dict inner_dict;
