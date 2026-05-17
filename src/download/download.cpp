@@ -1,9 +1,17 @@
 #include "download/download.hpp"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <algorithm>
-#include <fstream>
-#include <stdexcept>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <mutex>
+#include <span>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include "peer/peer.hpp"
 #include "util/random.hpp"
@@ -18,52 +26,89 @@ void download_file(const torrent::Metainfo& metainfo,
         throw std::runtime_error("no peers available");
     }
 
-    // TODO: download pieces from multiple peers in parallel
-    // TODO: reuse TCP connections across pieces to reduce handshake overhead
-    // TODO: write pieces incrementally instead of buffering entire file
-
     std::string effective_peer_id;
     if (peer_id.empty()) {
         effective_peer_id = util::random_bytes(20);
         peer_id = effective_peer_id;
     }
+
     auto num_pieces = static_cast<int>(metainfo.piece_hashes_.size());
+    auto num_workers = std::min(peers.size(), static_cast<size_t>(num_pieces));
 
-    std::string file_data(static_cast<size_t>(metainfo.length_), '\0');
-
-    for (int piece_idx = 0; piece_idx < num_pieces; ++piece_idx) {
-        std::string piece_data;
-        bool downloaded = false;
-
-        for (const auto& peer : peers) {
-            try {
-                piece_data = peer::download_piece(
-                    metainfo, peer.ip_, peer.port_, peer_id, piece_idx);
-                downloaded = true;
-                break;
-            } catch (const std::exception&) {
-                continue;
-            }
-        }
-
-        if (!downloaded) {
-            throw std::runtime_error("failed to download piece "
-                                     + std::to_string(piece_idx));
-        }
-
-        auto offset = static_cast<size_t>(piece_idx)
-                      * static_cast<size_t>(metainfo.piece_length_);
-        std::ranges::copy(piece_data,
-                          file_data.begin()
-                              + static_cast<std::ptrdiff_t>(offset));
-    }
-
-    std::ofstream out(output_path.data(), std::ios::binary);
-    if (!out) {
-        throw std::runtime_error(std::string{"cannot write to "}
+    int file_fd
+        = ::open(output_path.data(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (file_fd < 0) {
+        throw std::runtime_error(std::string{"cannot open file: "}
                                  + std::string(output_path));
     }
-    out.write(file_data.data(), static_cast<std::streamsize>(file_data.size()));
+
+    if (::ftruncate(file_fd, static_cast<off_t>(metainfo.length_)) < 0) {
+        ::close(file_fd);
+        throw std::runtime_error("failed to preallocate output file");
+    }
+
+    std::vector<std::jthread> workers;
+    workers.reserve(num_workers);
+    std::exception_ptr first_error;
+    std::mutex error_mutex;
+
+    auto base = num_pieces / static_cast<int>(num_workers);
+    auto rem = num_pieces % static_cast<int>(num_workers);
+
+    for (size_t wi = 0; wi < num_workers; ++wi) {
+        int start
+            = static_cast<int>(wi) * base + std::min(static_cast<int>(wi), rem);
+        int end = start + base + (static_cast<int>(wi) < rem ? 1 : 0);
+
+        workers.emplace_back([&metainfo,
+                              &peers,
+                              wi,
+                              start,
+                              end,
+                              file_fd,
+                              peer_id,
+                              &first_error,
+                              &error_mutex,
+                              piece_length = metainfo.piece_length_]() {
+            try {
+                auto conn = peer::establish_connection(peers[wi].ip_,
+                                                       peers[wi].port_,
+                                                       metainfo.info_hash_,
+                                                       peer_id);
+
+                for (int pi = start; pi < end; ++pi) {
+                    auto data = peer::download_piece_on_connection(
+                        conn, metainfo, pi);
+
+                    auto offset = static_cast<off_t>(pi)
+                                  * static_cast<off_t>(piece_length);
+                    auto written = ::pwrite(file_fd,
+                                            data.data(),
+                                            static_cast<size_t>(data.size()),
+                                            offset);
+                    if (written != static_cast<ssize_t>(data.size())) {
+                        throw std::runtime_error("pwrite failed for piece "
+                                                 + std::to_string(pi));
+                    }
+                }
+            } catch (...) {
+                std::lock_guard lock(error_mutex);
+                if (!first_error) {
+                    first_error = std::current_exception();
+                }
+            }
+        });
+    }
+
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    ::close(file_fd);
+
+    if (first_error) {
+        std::rethrow_exception(first_error);
+    }
 }
 
 } // namespace download

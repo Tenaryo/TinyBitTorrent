@@ -274,42 +274,45 @@ auto handshake_has_extensions(std::string_view response) -> bool {
     return (static_cast<uint8_t>(response[25]) & 0x10) != 0;
 }
 
-auto download_piece(const torrent::Metainfo& info,
-                    std::string_view peer_ip,
-                    uint16_t peer_port,
-                    std::string_view our_peer_id,
-                    int piece_index,
-                    int pipeline_depth) -> std::string {
-    util::Socket sock(peer_ip, peer_port);
+auto establish_connection(std::string_view host,
+                          uint16_t port,
+                          std::string_view info_hash,
+                          std::string_view peer_id,
+                          bool reserve_extensions) -> ReadyConnection {
+    util::Socket sock(host, port);
 
-    auto handshake_msg = make_handshake(info.info_hash_, our_peer_id, false);
+    auto handshake_msg = make_handshake(info_hash, peer_id, reserve_extensions);
     util::send_all(sock.fd(), handshake_msg);
     std::array<char, 68> hs_buf{};
     util::recv_all(sock.fd(), hs_buf);
     parse_handshake_peer_id(std::string_view{hs_buf.data(), hs_buf.size()});
 
-    {
-        auto msg = recv_message(sock.fd());
-        if (!std::holds_alternative<message::Bitfield>(msg)) [[unlikely]] {
-            throw std::runtime_error("expected bitfield, got other message");
-        }
-        if (!message::has_piece(std::get<message::Bitfield>(msg), piece_index))
-            [[unlikely]] {
-            throw std::runtime_error("peer does not have piece "
-                                     + std::to_string(piece_index));
-        }
+    auto msg = recv_message(sock.fd());
+    auto* bitfield_ptr = std::get_if<message::Bitfield>(&msg);
+    if (bitfield_ptr == nullptr) [[unlikely]] {
+        throw std::runtime_error("expected bitfield, got other message");
+    }
+    message::Bitfield bitfield = std::move(*bitfield_ptr);
+
+    auto interested = message::encode(message::Interested{});
+    util::send_all(sock.fd(), interested);
+
+    auto msg2 = recv_message(sock.fd());
+    if (!std::holds_alternative<message::Unchoke>(msg2)) [[unlikely]] {
+        throw std::runtime_error("expected unchoke, got other message");
     }
 
-    {
-        auto interested = message::encode(message::Interested{});
-        util::send_all(sock.fd(), interested);
-    }
+    bool has_ext = (static_cast<uint8_t>(hs_buf[25]) & 0x10) != 0;
+    return {std::move(sock), std::move(bitfield), has_ext};
+}
 
-    {
-        auto msg = recv_message(sock.fd());
-        if (!std::holds_alternative<message::Unchoke>(msg)) [[unlikely]] {
-            throw std::runtime_error("expected unchoke, got other message");
-        }
+auto download_piece_on_connection(ReadyConnection& conn,
+                                  const torrent::Metainfo& info,
+                                  int piece_index,
+                                  int pipeline_depth) -> std::string {
+    if (!message::has_piece(conn.bitfield_, piece_index)) [[unlikely]] {
+        throw std::runtime_error("peer does not have piece "
+                                 + std::to_string(piece_index));
     }
 
     auto num_pieces
@@ -343,13 +346,13 @@ auto download_piece(const torrent::Metainfo& info,
         auto& blk = blocks[send_idx];
         auto req = message::encode(
             message::Request{piece_index, blk.begin_, blk.length_});
-        util::send_all(sock.fd(), req);
+        util::send_all(conn.sock_.fd(), req);
         ++send_idx;
         ++pending;
     }
 
     while (blocks_received < kTotalBlocks) {
-        auto msg = recv_message(sock.fd());
+        auto msg = recv_message(conn.sock_.fd());
         std::visit(
             message::Overloaded{
                 [&](const message::Piece& pce) {
@@ -368,7 +371,7 @@ auto download_piece(const torrent::Metainfo& info,
                         auto& blk = blocks[send_idx];
                         auto req = message::encode(message::Request{
                             piece_index, blk.begin_, blk.length_});
-                        util::send_all(sock.fd(), req);
+                        util::send_all(conn.sock_.fd(), req);
                         ++send_idx;
                         ++pending;
                     }
@@ -388,6 +391,81 @@ auto download_piece(const torrent::Metainfo& info,
     }
 
     return piece_data;
+}
+
+auto download_piece(const torrent::Metainfo& info,
+                    std::string_view peer_ip,
+                    uint16_t peer_port,
+                    std::string_view our_peer_id,
+                    int piece_index,
+                    int pipeline_depth) -> std::string {
+    auto conn = establish_connection(
+        peer_ip, peer_port, info.info_hash_, our_peer_id);
+    return download_piece_on_connection(
+        conn, info, piece_index, pipeline_depth);
+}
+
+auto magnet_info_on_connection(ReadyConnection& conn,
+                               std::string_view info_hash,
+                               uint8_t ext_id) -> torrent::Metainfo {
+    if (!conn.extensions_enabled_) [[unlikely]] {
+        throw std::runtime_error("peer does not support extensions");
+    }
+
+    bencode::Dict ext_dict;
+    bencode::Dict inner_dict;
+    inner_dict.items_.emplace_back("ut_metadata", bencode::Integer{ext_id});
+    ext_dict.items_.emplace_back("m", std::move(inner_dict));
+
+    auto ext_payload = bencode::encode(bencode::Value{ext_dict});
+    auto ext_msg
+        = message::encode(message::Extended{0, std::move(ext_payload)});
+    util::send_all(conn.sock_.fd(), ext_msg);
+
+    auto msg = recv_message(conn.sock_.fd());
+    const auto* ext_resp = std::get_if<message::Extended>(&msg);
+    if (ext_resp == nullptr) [[unlikely]] {
+        throw std::runtime_error("expected extended handshake response");
+    }
+    auto metadata_ext_id = parse_ext_handshake_response(ext_resp->payload_);
+
+    send_metadata_request(conn.sock_.fd(), metadata_ext_id, 0);
+
+    auto data_msg = recv_message(conn.sock_.fd());
+    const auto* ext_data = std::get_if<message::Extended>(&data_msg);
+    if (ext_data == nullptr) {
+        throw std::runtime_error(
+            "expected extended message for metadata response");
+    }
+    if (ext_data->ext_msg_id_ != ext_id) {
+        throw std::runtime_error(
+            "metadata response ext_msg_id mismatch: expected "
+            + std::to_string(ext_id) + ", got "
+            + std::to_string(ext_data->ext_msg_id_));
+    }
+
+    auto info_dict_bencode = parse_metadata_data(ext_data->payload_);
+    auto info_value = bencode::decode(info_dict_bencode);
+    const auto* info_dict = std::get_if<bencode::Dict>(&info_value);
+    if (info_dict == nullptr) {
+        throw std::runtime_error(
+            "metadata piece contents is not a bencoded dictionary");
+    }
+
+    auto metainfo = torrent::from_info_dict(*info_dict);
+
+    util::Sha1 hasher;
+    hasher.update(info_dict_bencode);
+    auto digest = hasher.finalize();
+    std::string computed_hash(reinterpret_cast<const char*>(digest.data()),
+                              digest.size());
+    if (computed_hash != info_hash) [[unlikely]] {
+        throw std::runtime_error("metadata info hash mismatch: expected "
+                                 + util::bytes_to_hex(info_hash) + ", got "
+                                 + util::bytes_to_hex(computed_hash));
+    }
+
+    return metainfo;
 }
 
 } // namespace peer

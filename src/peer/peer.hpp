@@ -5,13 +5,21 @@
 #include <string>
 #include <string_view>
 
+#include "peer/message.hpp"
 #include "torrent/metainfo.hpp"
+#include "util/socket.hpp"
 
 namespace peer {
 
 struct MagnetHandshakeResult {
     std::string peer_id_;
     std::optional<uint8_t> metadata_ext_id_;
+};
+
+struct ReadyConnection {
+    util::Socket sock_;
+    message::Bitfield bitfield_;
+    bool extensions_enabled_{};
 };
 
 auto make_handshake(std::string_view info_hash,
@@ -60,5 +68,20 @@ auto download_piece(const torrent::Metainfo& info,
                     std::string_view our_peer_id,
                     int piece_index,
                     int pipeline_depth = 5) -> std::string;
+
+auto establish_connection(std::string_view host,
+                          uint16_t port,
+                          std::string_view info_hash,
+                          std::string_view peer_id,
+                          bool reserve_extensions = false) -> ReadyConnection;
+
+auto download_piece_on_connection(ReadyConnection& conn,
+                                  const torrent::Metainfo& info,
+                                  int piece_index,
+                                  int pipeline_depth = 5) -> std::string;
+
+auto magnet_info_on_connection(ReadyConnection& conn,
+                               std::string_view info_hash,
+                               uint8_t ext_id = 1) -> torrent::Metainfo;
 
 } // namespace peer

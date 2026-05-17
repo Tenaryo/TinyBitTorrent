@@ -185,12 +185,11 @@ auto handle_magnet_download_piece(const char* output_path,
     if (peers.empty()) {
         throw std::runtime_error("no peers available");
     }
-    // TODO: reuse single TCP connection for metadata + piece download
-    auto metainfo = peer::magnet_info(
-        peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
+    auto conn = peer::establish_connection(
+        peers[0].ip_, peers[0].port_, info.info_hash_, peer_id, true);
+    auto metainfo = peer::magnet_info_on_connection(conn, info.info_hash_);
     metainfo.announce_ = info.tracker_url_;
-    auto data = peer::download_piece(
-        metainfo, peers[0].ip_, peers[0].port_, peer_id, piece_index);
+    auto data = peer::download_piece_on_connection(conn, metainfo, piece_index);
     std::ofstream out(output_path, std::ios::binary);
     if (!out) {
         throw std::runtime_error(std::string{"cannot write to "} + output_path);
@@ -211,8 +210,9 @@ auto handle_magnet_download(const char* output_path, const char* magnet_link)
     if (peers.empty()) {
         throw std::runtime_error("no peers available");
     }
-    auto metainfo = peer::magnet_info(
-        peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
+    auto conn = peer::establish_connection(
+        peers[0].ip_, peers[0].port_, info.info_hash_, peer_id, true);
+    auto metainfo = peer::magnet_info_on_connection(conn, info.info_hash_);
     metainfo.announce_ = info.tracker_url_;
     download::download_file(metainfo, peers, output_path, peer_id);
     return 0;
