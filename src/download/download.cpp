@@ -12,7 +12,8 @@ namespace download {
 
 void download_file(const torrent::Metainfo& metainfo,
                    const std::vector<tracker::Peer>& peers,
-                   std::string_view output_path) {
+                   std::string_view output_path,
+                   std::string_view peer_id) {
     if (peers.empty()) {
         throw std::runtime_error("no peers available");
     }
@@ -21,7 +22,11 @@ void download_file(const torrent::Metainfo& metainfo,
     // TODO: reuse TCP connections across pieces to reduce handshake overhead
     // TODO: write pieces incrementally instead of buffering entire file
 
-    auto peer_id = util::random_bytes(20);
+    std::string effective_peer_id;
+    if (peer_id.empty()) {
+        effective_peer_id = util::random_bytes(20);
+        peer_id = effective_peer_id;
+    }
     auto num_pieces = static_cast<int>(metainfo.piece_hashes_.size());
 
     std::string file_data(static_cast<size_t>(metainfo.length_), '\0');
