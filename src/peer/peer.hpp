@@ -34,6 +34,23 @@ auto parse_ext_handshake_response(std::string_view bencode_payload) -> uint8_t;
 
 auto handshake_has_extensions(std::string_view response) -> bool;
 
+auto ext_handshake(int sock_fd,
+                   std::string_view info_hash,
+                   std::string_view our_peer_id,
+                   uint8_t ext_id) -> MagnetHandshakeResult;
+
+auto build_metadata_request(uint8_t peer_ext_id, int piece_index)
+    -> std::string;
+
+auto send_metadata_request(int sock_fd, uint8_t peer_ext_id, int piece_index)
+    -> void;
+
+auto magnet_info(std::string_view host,
+                 uint16_t port,
+                 std::string_view info_hash,
+                 std::string_view our_peer_id,
+                 uint8_t ext_id = 1) -> void;
+
 auto download_piece(const torrent::Metainfo& info,
                     std::string_view peer_ip,
                     uint16_t peer_port,

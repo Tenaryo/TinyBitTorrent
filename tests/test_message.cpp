@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "peer/message.hpp"
+#include "peer/peer.hpp"
 #include "util/bytes.hpp"
 #include "util/sha1.hpp"
 
@@ -271,6 +272,30 @@ TEST(Message, EncodeDecodeExtendedEmptyPayload) {
     auto& dec_ext = std::get<Extended>(decoded);
     EXPECT_EQ(dec_ext.ext_msg_id_, 7);
     EXPECT_TRUE(dec_ext.payload_.empty());
+}
+
+TEST(MetadataExtension, BuildMetadataRequest) {
+    auto wire = peer::build_metadata_request(42, 0);
+
+    ASSERT_GE(wire.size(), 6);
+    const char* ptr = wire.data();
+    auto prefix_len = util::read_int32_be(ptr);
+    EXPECT_EQ(static_cast<uint8_t>(wire[4]), 20);
+    EXPECT_EQ(static_cast<uint8_t>(wire[5]), 42);
+
+    auto payload = wire.substr(6);
+    EXPECT_EQ(payload, "d8:msg_typei0e5:piecei0ee");
+    auto expected_payload_len = 1 + 1 + static_cast<int32_t>(payload.size());
+    EXPECT_EQ(prefix_len, expected_payload_len);
+}
+
+TEST(MetadataExtension, BuildMetadataRequestPieceOne) {
+    auto wire = peer::build_metadata_request(7, 1);
+
+    ASSERT_GE(wire.size(), 6);
+    EXPECT_EQ(static_cast<uint8_t>(wire[4]), 20);
+    EXPECT_EQ(static_cast<uint8_t>(wire[5]), 7);
+    EXPECT_EQ(wire.substr(6), "d8:msg_typei0e5:piecei1ee");
 }
 
 } // anonymous namespace

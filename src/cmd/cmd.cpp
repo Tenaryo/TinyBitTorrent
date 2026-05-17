@@ -157,6 +157,21 @@ auto cmd_magnet_handshake(int /*argc*/, char** argv) -> int {
     return handle_magnet_handshake(argv[2]);
 }
 
+auto handle_magnet_info(const char* magnet_link) -> int {
+    auto info = magnet::parse(magnet_link);
+    auto peer_id = util::random_bytes(20);
+    auto peers = tracker::announce(info.info_hash_, info.tracker_url_, peer_id);
+    if (peers.empty()) {
+        throw std::runtime_error("no peers available");
+    }
+    peer::magnet_info(peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
+    return 0;
+}
+
+auto cmd_magnet_info(int /*argc*/, char** argv) -> int {
+    return handle_magnet_info(argv[2]);
+}
+
 constexpr std::array kCommands = {
     Command{"decode", "decode <encoded_value>", 3, cmd_decode},
     Command{"info", "info <torrent_file>", 3, cmd_info},
@@ -175,6 +190,7 @@ constexpr std::array kCommands = {
             "magnet_handshake <magnet_link>",
             3,
             cmd_magnet_handshake},
+    Command{"magnet_info", "magnet_info <magnet_link>", 3, cmd_magnet_info},
 };
 
 } // anonymous namespace

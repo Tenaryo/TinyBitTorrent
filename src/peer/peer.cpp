@@ -78,24 +78,21 @@ auto recv_message(int sock_fd) -> message::Message {
 
 } // anonymous namespace
 
-auto magnet_handshake(std::string_view host,
-                      uint16_t port,
-                      std::string_view info_hash,
-                      std::string_view our_peer_id,
-                      uint8_t ext_id) -> MagnetHandshakeResult {
-    util::Socket sock(host, port);
-
+auto ext_handshake(int sock_fd,
+                   std::string_view info_hash,
+                   std::string_view our_peer_id,
+                   uint8_t ext_id) -> MagnetHandshakeResult {
     auto hs_msg = make_handshake(info_hash, our_peer_id);
-    util::send_all(sock.fd(), hs_msg);
+    util::send_all(sock_fd, hs_msg);
 
     std::array<char, 68> hs_buf{};
-    util::recv_all(sock.fd(), hs_buf);
+    util::recv_all(sock_fd, hs_buf);
     auto peer_id = parse_handshake_peer_id(
         std::string_view{hs_buf.data(), hs_buf.size()});
 
     bool has_ext = (static_cast<uint8_t>(hs_buf[25]) & 0x10) != 0;
 
-    recv_message(sock.fd());
+    recv_message(sock_fd);
 
     if (has_ext) {
         bencode::Dict ext_dict;
@@ -106,9 +103,9 @@ auto magnet_handshake(std::string_view host,
         auto ext_payload = bencode::encode(bencode::Value{ext_dict});
         auto ext_msg
             = message::encode(message::Extended{0, std::move(ext_payload)});
-        util::send_all(sock.fd(), ext_msg);
+        util::send_all(sock_fd, ext_msg);
 
-        auto msg = recv_message(sock.fd());
+        auto msg = recv_message(sock_fd);
         const auto* ext_resp = std::get_if<message::Extended>(&msg);
         if (ext_resp == nullptr) {
             throw std::runtime_error("expected extended handshake response");
@@ -118,6 +115,46 @@ auto magnet_handshake(std::string_view host,
     }
 
     return {std::move(peer_id), std::nullopt};
+}
+
+auto magnet_handshake(std::string_view host,
+                      uint16_t port,
+                      std::string_view info_hash,
+                      std::string_view our_peer_id,
+                      uint8_t ext_id) -> MagnetHandshakeResult {
+    util::Socket sock(host, port);
+    return ext_handshake(sock.fd(), info_hash, our_peer_id, ext_id);
+}
+
+auto build_metadata_request(uint8_t peer_ext_id, int piece_index)
+    -> std::string {
+    bencode::Dict req;
+    req.items_.emplace_back("msg_type", bencode::Integer{0});
+    req.items_.emplace_back("piece", bencode::Integer{piece_index});
+
+    auto payload = bencode::encode(bencode::Value{req});
+    return message::encode(message::Extended{peer_ext_id, std::move(payload)});
+}
+
+auto send_metadata_request(int sock_fd, uint8_t peer_ext_id, int piece_index)
+    -> void {
+    auto msg = build_metadata_request(peer_ext_id, piece_index);
+    util::send_all(sock_fd, msg);
+}
+
+auto magnet_info(std::string_view host,
+                 uint16_t port,
+                 std::string_view info_hash,
+                 std::string_view our_peer_id,
+                 uint8_t ext_id) -> void {
+    util::Socket sock(host, port);
+    auto result = ext_handshake(sock.fd(), info_hash, our_peer_id, ext_id);
+
+    if (!result.metadata_ext_id_.has_value()) {
+        throw std::runtime_error("peer does not support ut_metadata extension");
+    }
+
+    send_metadata_request(sock.fd(), *result.metadata_ext_id_, 0);
 }
 
 auto parse_ext_handshake_response(std::string_view bencode_payload) -> uint8_t {
