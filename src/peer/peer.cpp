@@ -162,10 +162,10 @@ auto magnet_info(std::string_view host,
         throw std::runtime_error(
             "expected extended message for metadata response");
     }
-    if (ext_msg->ext_msg_id_ != *result.metadata_ext_id_) {
+    if (ext_msg->ext_msg_id_ != ext_id) {
         throw std::runtime_error(
             "metadata response ext_msg_id mismatch: expected "
-            + std::to_string(*result.metadata_ext_id_) + ", got "
+            + std::to_string(ext_id) + ", got "
             + std::to_string(ext_msg->ext_msg_id_));
     }
 
