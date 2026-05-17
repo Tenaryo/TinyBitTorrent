@@ -164,7 +164,10 @@ auto handle_magnet_info(const char* magnet_link) -> int {
     if (peers.empty()) {
         throw std::runtime_error("no peers available");
     }
-    peer::magnet_info(peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
+    auto metainfo = peer::magnet_info(
+        peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
+    metainfo.announce_ = info.tracker_url_;
+    std::cout << output::format(metainfo);
     return 0;
 }
 

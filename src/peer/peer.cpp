@@ -146,7 +146,7 @@ auto magnet_info(std::string_view host,
                  uint16_t port,
                  std::string_view info_hash,
                  std::string_view our_peer_id,
-                 uint8_t ext_id) -> void {
+                 uint8_t ext_id) -> torrent::Metainfo {
     util::Socket sock(host, port);
     auto result = ext_handshake(sock.fd(), info_hash, our_peer_id, ext_id);
 
@@ -155,6 +155,87 @@ auto magnet_info(std::string_view host,
     }
 
     send_metadata_request(sock.fd(), *result.metadata_ext_id_, 0);
+
+    auto msg = recv_message(sock.fd());
+    const auto* ext_msg = std::get_if<message::Extended>(&msg);
+    if (ext_msg == nullptr) {
+        throw std::runtime_error(
+            "expected extended message for metadata response");
+    }
+    if (ext_msg->ext_msg_id_ != *result.metadata_ext_id_) {
+        throw std::runtime_error(
+            "metadata response ext_msg_id mismatch: expected "
+            + std::to_string(*result.metadata_ext_id_) + ", got "
+            + std::to_string(ext_msg->ext_msg_id_));
+    }
+
+    auto info_dict_bencode = parse_metadata_data(ext_msg->payload_);
+    auto info_value = bencode::decode(info_dict_bencode);
+    const auto* info_dict = std::get_if<bencode::Dict>(&info_value);
+    if (info_dict == nullptr) {
+        throw std::runtime_error(
+            "metadata piece contents is not a bencoded dictionary");
+    }
+
+    auto metainfo = torrent::from_info_dict(*info_dict);
+
+    util::Sha1 hasher;
+    hasher.update(info_dict_bencode);
+    auto digest = hasher.finalize();
+    std::string computed_hash(reinterpret_cast<const char*>(digest.data()),
+                              digest.size());
+    if (computed_hash != info_hash) {
+        throw std::runtime_error("metadata info hash mismatch: expected "
+                                 + util::bytes_to_hex(info_hash) + ", got "
+                                 + util::bytes_to_hex(computed_hash));
+    }
+
+    return metainfo;
+}
+
+auto parse_metadata_data(std::string_view payload) -> std::string {
+    auto value = bencode::decode(payload);
+    const auto* dict = std::get_if<bencode::Dict>(&value);
+    if (dict == nullptr) {
+        throw std::runtime_error(
+            "metadata response payload is not a bencoded dictionary");
+    }
+
+    const auto* msg_type_val = bencode::find(*dict, "msg_type");
+    if (msg_type_val == nullptr) {
+        throw std::runtime_error("metadata response missing 'msg_type' key");
+    }
+    const auto* msg_type = std::get_if<bencode::Integer>(msg_type_val);
+    if (msg_type == nullptr || *msg_type != 1) {
+        throw std::runtime_error(
+            "metadata response has unexpected msg_type, expected 1");
+    }
+
+    const auto* piece_val = bencode::find(*dict, "piece");
+    if (piece_val == nullptr) {
+        throw std::runtime_error("metadata response missing 'piece' key");
+    }
+    const auto* piece = std::get_if<bencode::Integer>(piece_val);
+    if (piece == nullptr || *piece != 0) {
+        throw std::runtime_error(
+            "metadata response has unexpected piece index, expected 0");
+    }
+
+    const auto* total_size_val = bencode::find(*dict, "total_size");
+    if (total_size_val == nullptr) {
+        throw std::runtime_error("metadata response missing 'total_size' key");
+    }
+    const auto* total_size = std::get_if<bencode::Integer>(total_size_val);
+    if (total_size == nullptr || *total_size < 0) {
+        throw std::runtime_error("metadata response has invalid total_size");
+    }
+
+    auto info_size = static_cast<std::size_t>(*total_size);
+    if (info_size > payload.size()) {
+        throw std::runtime_error("metadata total_size exceeds payload size");
+    }
+
+    return std::string(payload.substr(payload.size() - info_size));
 }
 
 auto parse_ext_handshake_response(std::string_view bencode_payload) -> uint8_t {

@@ -49,7 +49,9 @@ auto magnet_info(std::string_view host,
                  uint16_t port,
                  std::string_view info_hash,
                  std::string_view our_peer_id,
-                 uint8_t ext_id = 1) -> void;
+                 uint8_t ext_id = 1) -> torrent::Metainfo;
+
+auto parse_metadata_data(std::string_view payload) -> std::string;
 
 auto download_piece(const torrent::Metainfo& info,
                     std::string_view peer_ip,

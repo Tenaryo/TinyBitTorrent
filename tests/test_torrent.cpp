@@ -69,3 +69,54 @@ TEST(TorrentExtract, ExtractPieceInfo) {
     EXPECT_EQ(result.piece_hashes_[1],
               "1200000000000000000000000000000000000034");
 }
+
+TEST(TorrentFromInfoDict, NormalCase) {
+    bencode::Dict info;
+    info.items_.push_back({"length", bencode::Integer(92063)});
+    info.items_.push_back({"piece length", bencode::Integer(32768)});
+
+    std::string raw_pieces(60, '\0');
+    raw_pieces[0] = '\x6e';
+    raw_pieces[19] = '\x35';
+    raw_pieces[20] = '\xe8';
+    raw_pieces[39] = '\x2d';
+    raw_pieces[40] = '\xf0';
+    raw_pieces[59] = '\x17';
+    info.items_.push_back({"pieces", bencode::String(raw_pieces)});
+
+    auto result = torrent::from_info_dict(info);
+
+    EXPECT_EQ(result.length_, 92063);
+    EXPECT_EQ(result.piece_length_, 32768);
+    EXPECT_EQ(result.announce_, "");
+    EXPECT_EQ(result.info_hash_.size(), 20);
+    EXPECT_FALSE(result.info_hash_.empty());
+    ASSERT_EQ(result.piece_hashes_.size(), 3);
+    EXPECT_EQ(result.piece_hashes_[0],
+              "6e00000000000000000000000000000000000035");
+    EXPECT_EQ(result.piece_hashes_[1],
+              "e80000000000000000000000000000000000002d");
+    EXPECT_EQ(result.piece_hashes_[2],
+              "f000000000000000000000000000000000000017");
+}
+
+TEST(TorrentFromInfoDict, MissingLengthThrows) {
+    bencode::Dict info;
+    info.items_.push_back({"piece length", bencode::Integer(32768)});
+    info.items_.push_back({"pieces", bencode::String(std::string(20, '\x00'))});
+    EXPECT_THROW(torrent::from_info_dict(info), std::runtime_error);
+}
+
+TEST(TorrentFromInfoDict, MissingPieceLengthThrows) {
+    bencode::Dict info;
+    info.items_.push_back({"length", bencode::Integer(92063)});
+    info.items_.push_back({"pieces", bencode::String(std::string(20, '\x00'))});
+    EXPECT_THROW(torrent::from_info_dict(info), std::runtime_error);
+}
+
+TEST(TorrentFromInfoDict, MissingPiecesThrows) {
+    bencode::Dict info;
+    info.items_.push_back({"length", bencode::Integer(92063)});
+    info.items_.push_back({"piece length", bencode::Integer(32768)});
+    EXPECT_THROW(torrent::from_info_dict(info), std::runtime_error);
+}

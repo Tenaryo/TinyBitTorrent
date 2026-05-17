@@ -106,4 +106,38 @@ TEST(PeerTest, ParseExtHandshakeMissingUtMetadata) {
                  std::runtime_error);
 }
 
+TEST(PeerTest, ParseMetadataDataNormal) {
+    std::string info_dict = "d6:lengthi92063e4:name4:test12:piece "
+                            "lengthi32768e6:pieces60:"
+                            + std::string(60, '\x00') + "e";
+    std::string payload = "d8:msg_typei1e5:piecei0e10:total_sizei"
+                          + std::to_string(info_dict.size()) + "ee" + info_dict;
+
+    auto result = peer::parse_metadata_data(payload);
+    EXPECT_EQ(result, info_dict);
+}
+
+TEST(PeerTest, ParseMetadataDataWrongMsgType) {
+    std::string payload = "d8:msg_typei0e5:piecei0e10:total_sizei10ee"
+                          + std::string(10, '\x00');
+    EXPECT_THROW(peer::parse_metadata_data(payload), std::runtime_error);
+}
+
+TEST(PeerTest, ParseMetadataDataWrongPiece) {
+    std::string payload = "d8:msg_typei1e5:piecei1e10:total_sizei10ee"
+                          + std::string(10, '\x00');
+    EXPECT_THROW(peer::parse_metadata_data(payload), std::runtime_error);
+}
+
+TEST(PeerTest, ParseMetadataDataMissingMsgType) {
+    std::string payload
+        = "d5:piecei0e10:total_sizei10ee" + std::string(10, '\x00');
+    EXPECT_THROW(peer::parse_metadata_data(payload), std::runtime_error);
+}
+
+TEST(PeerTest, ParseMetadataDataMissingTotalSize) {
+    std::string payload = "d8:msg_typei1e5:piecei0ee" + std::string(10, '\x00');
+    EXPECT_THROW(peer::parse_metadata_data(payload), std::runtime_error);
+}
+
 } // namespace

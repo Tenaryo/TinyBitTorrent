@@ -18,4 +18,6 @@ struct Metainfo {
 
 auto extract(const bencode::Dict& dict) -> Metainfo;
 
+auto from_info_dict(const bencode::Dict& info_dict) -> Metainfo;
+
 } // namespace torrent
