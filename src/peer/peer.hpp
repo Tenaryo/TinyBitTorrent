@@ -14,8 +14,9 @@ struct MagnetHandshakeResult {
     std::optional<uint8_t> metadata_ext_id_;
 };
 
-auto make_handshake(std::string_view info_hash, std::string_view our_peer_id)
-    -> std::string;
+auto make_handshake(std::string_view info_hash,
+                    std::string_view our_peer_id,
+                    bool reserve_extensions = true) -> std::string;
 
 auto parse_handshake_peer_id(std::string_view response) -> std::string;
 

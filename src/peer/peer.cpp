@@ -19,13 +19,14 @@
 
 namespace peer {
 
-auto make_handshake(std::string_view info_hash, std::string_view our_peer_id)
-    -> std::string {
+auto make_handshake(std::string_view info_hash,
+                    std::string_view our_peer_id,
+                    bool reserve_extensions) -> std::string {
     std::string msg(68, '\0');
     msg[0] = 19;
     constexpr std::string_view kProtocol = "BitTorrent protocol";
     std::ranges::copy(kProtocol, msg.begin() + 1);
-    msg[25] = '\x10';
+    msg[25] = reserve_extensions ? '\x10' : '\x00';
     std::ranges::copy(info_hash, msg.begin() + 28);
     std::ranges::copy(our_peer_id, msg.begin() + 48);
     return msg;
@@ -281,7 +282,7 @@ auto download_piece(const torrent::Metainfo& info,
                     int pipeline_depth) -> std::string {
     util::Socket sock(peer_ip, peer_port);
 
-    auto handshake_msg = make_handshake(info.info_hash_, our_peer_id);
+    auto handshake_msg = make_handshake(info.info_hash_, our_peer_id, false);
     util::send_all(sock.fd(), handshake_msg);
     std::array<char, 68> hs_buf{};
     util::recv_all(sock.fd(), hs_buf);
