@@ -73,7 +73,7 @@ void Socket::close() {
 void send_all(int sock_fd, std::string_view data) {
     while (!data.empty()) {
         ssize_t sent = ::send(sock_fd, data.data(), data.size(), 0);
-        if (sent < 0) {
+        if (sent < 0) [[unlikely]] {
             throw std::runtime_error("send failed");
         }
         data.remove_prefix(static_cast<std::size_t>(sent));
@@ -83,7 +83,7 @@ void send_all(int sock_fd, std::string_view data) {
 void recv_all(int sock_fd, std::span<char> buffer) {
     while (!buffer.empty()) {
         ssize_t received = ::recv(sock_fd, buffer.data(), buffer.size(), 0);
-        if (received <= 0) {
+        if (received <= 0) [[unlikely]] {
             throw std::runtime_error("recv failed or connection closed");
         }
         buffer = buffer.subspan(static_cast<std::size_t>(received));

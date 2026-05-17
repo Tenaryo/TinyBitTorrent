@@ -175,6 +175,34 @@ auto cmd_magnet_info(int /*argc*/, char** argv) -> int {
     return handle_magnet_info(argv[2]);
 }
 
+auto handle_magnet_download_piece(const char* output_path,
+                                  const char* magnet_link,
+                                  const char* piece_index_str) -> int {
+    auto info = magnet::parse(magnet_link);
+    auto piece_index = std::stoi(piece_index_str);
+    auto peer_id = util::random_bytes(20);
+    auto peers = tracker::announce(info.info_hash_, info.tracker_url_, peer_id);
+    if (peers.empty()) {
+        throw std::runtime_error("no peers available");
+    }
+    // TODO: reuse single TCP connection for metadata + piece download
+    auto metainfo = peer::magnet_info(
+        peers[0].ip_, peers[0].port_, info.info_hash_, peer_id);
+    metainfo.announce_ = info.tracker_url_;
+    auto data = peer::download_piece(
+        metainfo, peers[0].ip_, peers[0].port_, peer_id, piece_index);
+    std::ofstream out(output_path, std::ios::binary);
+    if (!out) {
+        throw std::runtime_error(std::string{"cannot write to "} + output_path);
+    }
+    out.write(data.data(), static_cast<std::streamsize>(data.size()));
+    return 0;
+}
+
+auto cmd_magnet_download_piece(int /*argc*/, char** argv) -> int {
+    return handle_magnet_download_piece(argv[3], argv[4], argv[5]);
+}
+
 constexpr std::array kCommands = {
     Command{"decode", "decode <encoded_value>", 3, cmd_decode},
     Command{"info", "info <torrent_file>", 3, cmd_info},
@@ -194,6 +222,10 @@ constexpr std::array kCommands = {
             3,
             cmd_magnet_handshake},
     Command{"magnet_info", "magnet_info <magnet_link>", 3, cmd_magnet_info},
+    Command{"magnet_download_piece",
+            "magnet_download_piece -o <output> <magnet_link> <piece_index>",
+            6,
+            cmd_magnet_download_piece},
 };
 
 } // anonymous namespace

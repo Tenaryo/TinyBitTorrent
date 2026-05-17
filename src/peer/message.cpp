@@ -54,7 +54,7 @@ auto encode(const Message& msg) -> std::string {
 }
 
 auto decode(std::string_view data) -> Message {
-    if (data.empty()) {
+    if (data.empty()) [[unlikely]] {
         throw std::runtime_error("empty message payload");
     }
     auto msg_id = static_cast<uint8_t>(data[0]);
@@ -78,16 +78,17 @@ auto decode(std::string_view data) -> Message {
         req.length_ = util::read_int32_be(ptr);
         return req;
     }
-    case 7: {
-        const auto* ptr = payload.data();
-        Piece pce{};
-        pce.index_ = util::read_int32_be(ptr);
-        pce.begin_ = util::read_int32_be(ptr);
-        pce.block_ = std::string(payload.substr(8));
-        return pce;
-    }
+    case 7:
+        [[likely]] {
+            const auto* ptr = payload.data();
+            Piece pce{};
+            pce.index_ = util::read_int32_be(ptr);
+            pce.begin_ = util::read_int32_be(ptr);
+            pce.block_ = std::string(payload.substr(8));
+            return pce;
+        }
     case 20: {
-        if (payload.empty()) {
+        if (payload.empty()) [[unlikely]] {
             throw std::runtime_error("extended message too short");
         }
         Extended ext{};
@@ -96,8 +97,8 @@ auto decode(std::string_view data) -> Message {
         return ext;
     }
     default:
-        throw std::runtime_error("unknown message id: "
-                                 + std::to_string(msg_id));
+        [[unlikely]] throw std::runtime_error("unknown message id: "
+                                              + std::to_string(msg_id));
     }
 }
 

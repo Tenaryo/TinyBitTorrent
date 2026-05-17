@@ -77,10 +77,10 @@ auto get(std::string_view url) -> std::string {
     std::string response;
     while (true) {
         ssize_t received = recv(sock.fd(), buf.data(), buf.size(), 0);
-        if (received < 0) {
+        if (received < 0) [[unlikely]] {
             throw std::runtime_error("recv failed");
         }
-        if (received == 0) {
+        if (received == 0) [[unlikely]] {
             break;
         }
         response.append(buf.data(), static_cast<std::size_t>(received));
