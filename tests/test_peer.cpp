@@ -74,4 +74,36 @@ TEST(PeerTest, HandshakeHasExtensionsTooShort) {
     EXPECT_THROW(peer::handshake_has_extensions(response), std::runtime_error);
 }
 
+TEST(PeerTest, ParseExtHandshakeNormal) {
+    auto ext_id
+        = peer::parse_ext_handshake_response("d1:md11:ut_metadatai42eee");
+    EXPECT_EQ(ext_id, 42);
+}
+
+TEST(PeerTest, ParseExtHandshakeMaxUint8) {
+    auto ext_id
+        = peer::parse_ext_handshake_response("d1:md11:ut_metadatai255eee");
+    EXPECT_EQ(ext_id, 255);
+}
+
+TEST(PeerTest, ParseExtHandshakeInvalidBencode) {
+    EXPECT_THROW(peer::parse_ext_handshake_response("not bencode"),
+                 std::runtime_error);
+}
+
+TEST(PeerTest, ParseExtHandshakeMissingMKey) {
+    EXPECT_THROW(peer::parse_ext_handshake_response("d4:infod4:name5:testeee"),
+                 std::runtime_error);
+}
+
+TEST(PeerTest, ParseExtHandshakeMNotDict) {
+    EXPECT_THROW(peer::parse_ext_handshake_response("d1:mi42ee"),
+                 std::runtime_error);
+}
+
+TEST(PeerTest, ParseExtHandshakeMissingUtMetadata) {
+    EXPECT_THROW(peer::parse_ext_handshake_response("d1:md11:other_exti1eee"),
+                 std::runtime_error);
+}
+
 } // namespace

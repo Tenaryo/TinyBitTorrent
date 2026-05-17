@@ -2,6 +2,7 @@
 
 #include "bencode/decoder.hpp"
 #include "bencode/encoder.hpp"
+#include "bencode/value.hpp"
 
 TEST(BencodeDecode, NegativeInteger) {
     auto result = bencode::decode("i-52e");
@@ -148,4 +149,36 @@ TEST(BencodeEncode, EmptyList) {
 
 TEST(BencodeEncode, EmptyDict) {
     EXPECT_EQ(bencode::encode(bencode::Dict{}), "de");
+}
+
+TEST(BencodeFind, FindsExistingKey) {
+    bencode::Dict dict;
+    dict.items_.emplace_back("a", bencode::Integer(1));
+    dict.items_.emplace_back("b", bencode::String("x"));
+    auto* found = bencode::find(dict, "a");
+    ASSERT_NE(found, nullptr);
+    ASSERT_TRUE(std::holds_alternative<bencode::Integer>(*found));
+    EXPECT_EQ(std::get<bencode::Integer>(*found), 1);
+}
+
+TEST(BencodeFind, ReturnsNullForMissingKey) {
+    bencode::Dict dict;
+    dict.items_.emplace_back("a", bencode::Integer(1));
+    EXPECT_EQ(bencode::find(dict, "c"), nullptr);
+}
+
+TEST(BencodeFind, ReturnsNullForEmptyDict) {
+    bencode::Dict dict;
+    EXPECT_EQ(bencode::find(dict, "x"), nullptr);
+}
+
+TEST(BencodeFind, FindsMiddleEntry) {
+    bencode::Dict dict;
+    dict.items_.emplace_back("x", bencode::Integer(1));
+    dict.items_.emplace_back("y", bencode::Integer(2));
+    dict.items_.emplace_back("z", bencode::Integer(3));
+    auto* found = bencode::find(dict, "y");
+    ASSERT_NE(found, nullptr);
+    ASSERT_TRUE(std::holds_alternative<bencode::Integer>(*found));
+    EXPECT_EQ(std::get<bencode::Integer>(*found), 2);
 }

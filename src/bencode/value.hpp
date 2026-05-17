@@ -25,4 +25,14 @@ struct Dict {
     std::vector<Entry> items_;
 };
 
+[[nodiscard]] inline auto find(const Dict& dict, std::string_view key) noexcept
+    -> const Value* {
+    for (const auto& [k, v] : dict.items_) {
+        if (k == key) {
+            return &v;
+        }
+    }
+    return nullptr;
+}
+
 } // namespace bencode

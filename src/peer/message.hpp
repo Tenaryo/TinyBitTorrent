@@ -38,7 +38,7 @@ Overloaded(Ts...) -> Overloaded<Ts...>;
 
 auto encode(const Message& msg) -> std::string;
 auto decode(std::string_view data) -> Message;
-auto has_piece(const Bitfield& bfld, int piece_index) -> bool;
+auto has_piece(const Bitfield& bfld, int piece_index) noexcept -> bool;
 
 constexpr int32_t kBlockSize = 16 * 1024;
 constexpr int kPipelineDepth = 5;

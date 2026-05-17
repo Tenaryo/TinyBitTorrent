@@ -61,4 +61,14 @@ auto format(const magnet::MagnetInfo& info) -> std::string {
                        util::bytes_to_hex(info.info_hash_));
 }
 
+auto format(const peer::MagnetHandshakeResult& result) -> std::string {
+    std::string output
+        = std::format("Peer ID: {}\n", util::bytes_to_hex(result.peer_id_));
+    if (result.metadata_ext_id_.has_value()) {
+        output += std::format("Peer Metadata Extension ID: {}\n",
+                              static_cast<int>(*result.metadata_ext_id_));
+    }
+    return output;
+}
+
 } // namespace output

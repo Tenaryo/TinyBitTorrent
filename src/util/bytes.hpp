@@ -12,7 +12,7 @@ inline void write_int32_be(std::string& buf, int32_t val) {
     buf.push_back(static_cast<char>(val & 0xFF));
 }
 
-inline auto read_int32_be(const char*& data) -> int32_t {
+inline auto read_int32_be(const char*& data) noexcept -> int32_t {
     auto byte0 = static_cast<uint8_t>(data[0]);
     auto byte1 = static_cast<uint8_t>(data[1]);
     auto byte2 = static_cast<uint8_t>(data[2]);

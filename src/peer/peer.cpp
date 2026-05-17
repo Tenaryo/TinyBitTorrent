@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "bencode/decoder.hpp"
 #include "bencode/encoder.hpp"
 #include "bencode/value.hpp"
 #include "peer/message.hpp"
@@ -81,7 +82,7 @@ auto magnet_handshake(std::string_view host,
                       uint16_t port,
                       std::string_view info_hash,
                       std::string_view our_peer_id,
-                      uint8_t ext_id) -> std::string {
+                      uint8_t ext_id) -> MagnetHandshakeResult {
     util::Socket sock(host, port);
 
     auto hs_msg = make_handshake(info_hash, our_peer_id);
@@ -105,10 +106,44 @@ auto magnet_handshake(std::string_view host,
             = message::encode(message::Extended{0, std::move(ext_payload)});
         util::send_all(sock.fd(), ext_msg);
 
-        recv_message(sock.fd());
+        auto msg = recv_message(sock.fd());
+        const auto* ext_resp = std::get_if<message::Extended>(&msg);
+        if (ext_resp == nullptr) {
+            throw std::runtime_error("expected extended handshake response");
+        }
+        auto metadata_ext_id = parse_ext_handshake_response(ext_resp->payload_);
+        return {std::move(peer_id), metadata_ext_id};
     }
 
-    return peer_id;
+    return {std::move(peer_id), std::nullopt};
+}
+
+auto parse_ext_handshake_response(std::string_view bencode_payload) -> uint8_t {
+    auto value = bencode::decode(bencode_payload);
+    const auto* dict = std::get_if<bencode::Dict>(&value);
+    if (dict == nullptr) {
+        throw std::runtime_error("extension handshake: payload is not a dict");
+    }
+    const auto* m_val = bencode::find(*dict, "m");
+    if (m_val == nullptr) {
+        throw std::runtime_error("extension handshake: missing 'm' key");
+    }
+    const auto* inner_dict = std::get_if<bencode::Dict>(m_val);
+    if (inner_dict == nullptr) {
+        throw std::runtime_error(
+            "extension handshake: 'm' value is not a dict");
+    }
+    const auto* ut_val = bencode::find(*inner_dict, "ut_metadata");
+    if (ut_val == nullptr) {
+        throw std::runtime_error(
+            "extension handshake: missing 'ut_metadata' key");
+    }
+    const auto* ext_id = std::get_if<bencode::Integer>(ut_val);
+    if (ext_id == nullptr) {
+        throw std::runtime_error(
+            "extension handshake: 'ut_metadata' value is not an integer");
+    }
+    return static_cast<uint8_t>(*ext_id);
 }
 
 auto handshake_has_extensions(std::string_view response) -> bool {

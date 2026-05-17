@@ -101,7 +101,7 @@ auto decode(std::string_view data) -> Message {
     }
 }
 
-auto has_piece(const Bitfield& bfld, int piece_index) -> bool {
+auto has_piece(const Bitfield& bfld, int piece_index) noexcept -> bool {
     auto byte_idx = piece_index / 8;
     if (byte_idx >= static_cast<int>(bfld.data_.size())) {
         return false;
