@@ -14,22 +14,19 @@ echo -e "${BLUE}   Running Test Suite${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo
 
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
-
-if [ ! -f "CMakeCache.txt" ]; then
+if [ ! -f "$BUILD_DIR/CMakeCache.txt" ]; then
     echo -e "${YELLOW}Configuring CMake...${NC}"
-    cmake .. -DCMAKE_BUILD_TYPE=Debug
+    cmake -B "$BUILD_DIR" -S . -DCMAKE_BUILD_TYPE=Debug
 fi
 
 echo -e "${YELLOW}Building tests...${NC}"
-cmake --build . -j$(nproc) 2>&1 | grep -E "(Building|Linking|error|warning)" || true
+cmake --build "$BUILD_DIR" -j$(nproc) 2>&1 | grep -E "(Building|Linking|error|warning)" || true
 echo
 
 echo -e "${YELLOW}Running tests via ctest...${NC}"
 echo
 
-if ctest --output-on-failure -j$(nproc); then
+if ctest --test-dir "$BUILD_DIR" --output-on-failure -j$(nproc); then
     echo
     echo -e "${GREEN}All tests passed!${NC}"
     exit 0

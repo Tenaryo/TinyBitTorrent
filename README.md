@@ -4,6 +4,7 @@
 
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-blue)](https://en.cppreference.com/w/cpp/23)
 [![CMake](https://img.shields.io/badge/CMake-3.21%2B-green)](https://cmake.org/)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey)](https://en.wikipedia.org/wiki/POSIX)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen)](./LICENSE)
 
 ## Features
@@ -46,6 +47,33 @@
 | `clang-tidy` | Static analysis with `bugprone-*`, `modernize-*`, `performance-*`, `readability-*` |
 | `-fsanitize=address,undefined` | Optional ASan/UBSan for runtime safety |
 
+## Requirements
+
+| Dependency | Minimum Version | Notes |
+|---|---|---|
+| **C++ Compiler** | GCC ≥ 13 or Clang ≥ 18 | C++23 support required |
+| **CMake** | ≥ 3.21 | FetchContent support |
+| **Ninja** (optional) | ≥ 1.10 | Recommended for fast builds; Makefiles also work |
+
+> **Platform:** Linux / macOS (POSIX). Windows is not supported — the networking layer uses POSIX sockets (`<arpa/inet.h>`, `<sys/socket.h>`, `pwrite`).
+
+Install on **Ubuntu 24.04**:
+```bash
+sudo apt install g++-13 cmake ninja-build
+```
+
+Install on **Ubuntu 22.04**:
+```bash
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+sudo apt update
+sudo apt install g++-13 cmake ninja-build
+```
+
+Install on **macOS**:
+```bash
+brew install gcc@13 cmake ninja
+```
+
 ## Quick Start
 
 ```bash
@@ -53,16 +81,25 @@
 git clone https://github.com/Tenaryo/TinyBitTorrent.git
 cd TinyBitTorrent
 
-# Build (requires CMake 3.21+, Ninja, C++23 compiler)
-mkdir build && cd build
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
-cmake --build .
+# Build (CMake auto-detects generator; override with -DCMAKE_CXX_COMPILER if needed)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+
+# Or with Ninja for faster builds:
+# cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
 # Run tests
-cd .. && ctest --test-dir build -j$(nproc)
+ctest --test-dir build -j$(nproc)
 
 # Download a file via magnet link
-./bittorrent magnet_download -o ubuntu.iso "magnet:?xt=urn:btih:..."
+./build/bittorrent magnet_download -o ubuntu.iso "magnet:?xt=urn:btih:..."
+```
+
+### Docker (zero-config reproducible build)
+
+```bash
+docker build -t tinybittorrent .
+docker run --rm tinybittorrent info sample.torrent
 ```
 
 ## CLI Reference
